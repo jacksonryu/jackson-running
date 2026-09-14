@@ -136,9 +136,28 @@ def get_text(session: requests.Session, url: str, params: Optional[dict] = None)
 
 
 def strip_html(raw: str) -> str:
+    """Convert UTMB HTML to searchable text while preserving accessibility labels.
+
+    UTMB renders the category names (Index / 20K / 50K / 100K / 100M) mostly
+    as image alt/aria labels.  A normal tag-stripper throws those labels away,
+    which is exactly why the previous parser could see the numbers but not know
+    which number belonged to which category.
+    """
     raw = re.sub(r"<script\b[^>]*>.*?</script>", " ", raw, flags=re.I | re.S)
     raw = re.sub(r"<style\b[^>]*>.*?</style>", " ", raw, flags=re.I | re.S)
     raw = re.sub(r"<noscript\b[^>]*>.*?</noscript>", " ", raw, flags=re.I | re.S)
+
+    def labelled_tag(match: re.Match[str]) -> str:
+        tag = match.group(0)
+        labels = []
+        for attr in ("alt", "aria-label", "title"):
+            m = re.search(rf"\b{attr}\s*=\s*([\"'])(.*?)\1", tag, flags=re.I | re.S)
+            if m and m.group(2).strip():
+                labels.append(html_lib.unescape(m.group(2).strip()))
+        return " " + " ".join(labels) + " " if labels else " "
+
+    # Preserve image/button accessibility text before removing all tags.
+    raw = re.sub(r"<(?:img|svg|button|a)\b[^>]*>", labelled_tag, raw, flags=re.I | re.S)
     raw = re.sub(r"<[^>]+>", " ", raw)
     raw = html_lib.unescape(raw)
     return re.sub(r"\s+", " ", raw).strip()
@@ -286,6 +305,24 @@ def parse_profile(raw_html: str) -> dict:
         profile["name"] = strip_html(h1.group(1))
 
     profile["overall_index"] = profile["overall_index"] or metric_after_label(text, "UTMB Index Race")
+    if profile["overall_index"] is None:
+        profile["overall_index"] = metric_after_label(text, "UTMB Index")
+
+    # UTMB's profile header currently has the stable sequence:
+    # South Korea -> 35-39 Men -> ... -> <overall> -> Details -> 20K -> <value> ...
+    # This fallback does not depend on class names or JS bundle internals.
+    if profile["overall_index"] is None:
+        header = re.search(
+            r"South\s+Korea.{0,600}?\b(?:U20|20-34|35-39|40-44|45-49|50-54|55-59|60-64|65-69|70-74|75-79|80-84|85\+)\s+(?:Men|Women)\b(?P<tail>.{0,900}?)\bDetails\b",
+            text,
+            flags=re.I | re.S,
+        )
+        if header:
+            nums = [int(x) for x in re.findall(r"\b(\d{3})\b", header.group("tail"))]
+            nums = [x for x in nums if 100 <= x <= 999]
+            if nums:
+                profile["overall_index"] = nums[-1]
+
     profile["index_20k"] = profile["index_20k"] or metric_after_label(text, "20K")
     profile["index_50k"] = profile["index_50k"] or metric_after_label(text, "50K")
     profile["index_100k"] = profile["index_100k"] or metric_after_label(text, "100K")
@@ -317,7 +354,13 @@ def parse_profile(raw_html: str) -> dict:
     profile["age_group"] = profile["age_group"] or DEFAULT_AGE_GROUP
 
     if profile["overall_index"] is None:
-        raise RuntimeError("Could not parse the current UTMB Index from the public profile page.")
+        has_name = bool(re.search(r"Jesun\s+RYU", text, flags=re.I))
+        has_country = bool(re.search(r"South\s+Korea", text, flags=re.I))
+        has_details = bool(re.search(r"\bDetails\b", text, flags=re.I))
+        raise RuntimeError(
+            "Could not parse the current UTMB Index from the public profile page "
+            f"(name={has_name}, country={has_country}, details={has_details}, text_len={len(text)})."
+        )
     return profile
 
 
