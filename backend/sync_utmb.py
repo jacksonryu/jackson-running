@@ -10,7 +10,7 @@ import sys
 import time
 from datetime import datetime, timezone, timedelta
 from typing import Any, Dict, Iterable, List, Optional, Tuple
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urljoin, urlparse, urlencode
 
 import requests
 
@@ -31,13 +31,62 @@ DEFAULT_AGE_GROUP = os.getenv("UTMB_AGE_GROUP", "35-39")
 
 REQUEST_TIMEOUT = 25
 MAX_CUTOFF_PAGE = int(os.getenv("UTMB_MAX_CUTOFF_PAGE", "4096"))
-RANK_SAMPLE_PAGES = int(os.getenv("UTMB_RANK_SAMPLE_PAGES", "72"))
+RANK_SAMPLE_PAGES = int(os.getenv("UTMB_RANK_SAMPLE_PAGES", "36"))
 KST = timezone(timedelta(hours=9))
 
 USER_AGENT = (
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/151.0 Safari/537.36 JacksonRunning/1.0"
 )
+
+
+
+class BrowserRenderer:
+    """Small Playwright wrapper used when UTMB serves client-rendered HTML.
+
+    The requests parser stays as the fast path. GitHub Actions installs Chromium for
+    this workflow, and the browser is only used when needed for profile/ranking pages.
+    """
+
+    def __init__(self) -> None:
+        try:
+            from playwright.sync_api import sync_playwright
+        except Exception as exc:  # pragma: no cover - environment-dependent
+            raise RuntimeError(
+                "Playwright is required for UTMB's client-rendered pages but is not installed."
+            ) from exc
+        self._pw = sync_playwright().start()
+        self._browser = self._pw.chromium.launch(
+            headless=True,
+            args=["--disable-dev-shm-usage", "--no-sandbox"],
+        )
+        self._context = self._browser.new_context(
+            user_agent=USER_AGENT,
+            locale="en-US",
+        )
+        self._page = self._context.new_page()
+
+    def get_html(self, url: str, params: Optional[dict] = None) -> str:
+        if params:
+            sep = "&" if "?" in url else "?"
+            url = f"{url}{sep}{urlencode(params)}"
+        log(f"browser render: {url}")
+        self._page.goto(url, wait_until="domcontentloaded", timeout=60_000)
+        try:
+            self._page.wait_for_load_state("networkidle", timeout=15_000)
+        except Exception:
+            pass
+        self._page.wait_for_timeout(2_500)
+        return self._page.content()
+
+    def close(self) -> None:
+        try:
+            self._context.close()
+        finally:
+            try:
+                self._browser.close()
+            finally:
+                self._pw.stop()
 
 
 def log(msg: str) -> None:
@@ -436,7 +485,7 @@ def even_sample_pages(last_page: int, count: int) -> List[int]:
     return sorted(pages)
 
 
-def estimate_korea_rank(session: requests.Session, target_score: int, age_group: str) -> dict:
+def estimate_korea_rank(session: requests.Session, target_score: int, age_group: str, renderer: Optional[BrowserRenderer] = None) -> dict:
     """Estimate Korea men's rank from the public UTMB ranking table.
 
     UTMB does not document a public country-ranking API. Instead of hammering every ranking
@@ -445,12 +494,23 @@ def estimate_korea_rank(session: requests.Session, target_score: int, age_group:
     """
 
     cache: Dict[int, List[dict]] = {}
+    force_browser = False
 
     def page_rows(page: int) -> List[dict]:
+        nonlocal force_browser
         if page in cache:
             return cache[page]
-        raw = get_text(session, RUNNER_SEARCH_URL, params={"page": page})
-        rows = extract_rank_rows(raw)
+        if force_browser and renderer is not None:
+            raw = renderer.get_html(RUNNER_SEARCH_URL, params={"page": page})
+            rows = extract_rank_rows(raw)
+        else:
+            raw = get_text(session, RUNNER_SEARCH_URL, params={"page": page})
+            rows = extract_rank_rows(raw)
+            # UTMB currently renders runner-search client-side. If the server HTML has too
+            # few rows, fall back to a real Chromium render.
+            if renderer is not None and len(rows) < 5:
+                raw = renderer.get_html(RUNNER_SEARCH_URL, params={"page": page})
+                rows = extract_rank_rows(raw)
         cache[page] = rows
         time.sleep(0.08 + random.random() * 0.06)
         return rows
@@ -462,8 +522,20 @@ def estimate_korea_rank(session: requests.Session, target_score: int, age_group:
 
     sig1 = tuple((r["id"], r["score"]) for r in first[:5])
     sig2 = tuple((r["id"], r["score"]) for r in second[:5])
+    if sig1 == sig2 and renderer is not None:
+        # The raw HTML often ignores ?page= while the browser app respects it.
+        force_browser = True
+        cache.clear()
+        raw1 = renderer.get_html(RUNNER_SEARCH_URL, params={"page": 1})
+        raw2 = renderer.get_html(RUNNER_SEARCH_URL, params={"page": 2})
+        first = extract_rank_rows(raw1)
+        second = extract_rank_rows(raw2)
+        cache[1] = first
+        cache[2] = second
+        sig1 = tuple((r["id"], r["score"]) for r in first[:5])
+        sig2 = tuple((r["id"], r["score"]) for r in second[:5])
     if sig1 == sig2:
-        return {"status": "unavailable", "reason": "pagination_not_observable"}
+        return {"status": "unavailable", "reason": "pagination_not_observable_even_in_browser"}
 
     page_size = int(round((len(first) + len(second)) / 2))
 
@@ -597,10 +669,18 @@ def upsert_snapshot(row: dict) -> None:
 def main() -> None:
     require_config()
     session = make_session()
+    renderer: Optional[BrowserRenderer] = None
 
     log(f"fetching public profile: {PROFILE_URL}")
     profile_html = get_text(session, PROFILE_URL)
-    profile = parse_profile(profile_html)
+    try:
+        profile = parse_profile(profile_html)
+    except RuntimeError:
+        log("static HTML did not contain the index; retrying with a rendered Chromium page")
+        renderer = BrowserRenderer()
+        profile_html = renderer.get_html(PROFILE_URL)
+        profile = parse_profile(profile_html)
+
     log(
         "profile parsed: "
         f"overall={profile['overall_index']} 20K={profile['index_20k']} "
@@ -608,10 +688,13 @@ def main() -> None:
     )
 
     try:
+        if renderer is None:
+            renderer = BrowserRenderer()
         rank = estimate_korea_rank(
             session,
             int(profile["overall_index"]),
             str(profile.get("age_group") or DEFAULT_AGE_GROUP),
+            renderer=renderer,
         )
     except Exception as exc:  # rank should never block the index snapshot itself
         rank = {"status": "unavailable", "reason": f"rank_estimation_error: {type(exc).__name__}: {exc}"}
@@ -661,6 +744,8 @@ def main() -> None:
 
     upsert_snapshot(row)
     log(f"Supabase snapshot saved for {today_kst}")
+    if renderer is not None:
+        renderer.close()
 
 
 if __name__ == "__main__":

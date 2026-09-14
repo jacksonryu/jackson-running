@@ -42,5 +42,10 @@ jobs:
       - name: Install backend requirements
         run: python -m pip install -r requirements.txt
 
+      - name: Install browser fallback for UTMB
+        run: |
+          python -m pip install playwright
+          python -m playwright install --with-deps chromium
+
       - name: Sync UTMB index and Korea rank estimate
         run: python sync_utmb.py
