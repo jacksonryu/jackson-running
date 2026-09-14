@@ -1,0 +1,56 @@
+name: Full History Backfill
+
+on:
+  workflow_dispatch:
+    inputs:
+      oldest_date:
+        description: "Oldest Intervals.icu date to import (YYYY-MM-DD)"
+        required: true
+        default: "2000-01-01"
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jackson-running-engine
+  cancel-in-progress: false
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    defaults:
+      run:
+        working-directory: backend
+
+    env:
+      INTERVALS_API_KEY: ${{ secrets.INTERVALS_API_KEY }}
+      INTERVALS_ATHLETE_ID: ${{ secrets.INTERVALS_ATHLETE_ID }}
+      SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install Python dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Backfill historical activities and wellness
+        run: python backfill_history.py --oldest "${{ inputs.oldest_date }}"
+
+      - name: Rebuild daily analytics context
+        run: python build_daily_context.py
+
+      - name: Refresh Claude coach report
+        run: python claude_coach.py
