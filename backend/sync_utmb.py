@@ -545,164 +545,226 @@ def _visible_locator(locator):
 
 
 def _choose_custom_filter(page, label: str, value: str) -> None:
-    """Set one UTMB Runner Search filter and verify the selected value.
+    """Set one UTMB Runner Search filter by finding the dropdown that actually contains `value`.
 
-    Important: never use a page-wide text match for the option. The ranking table itself
-    contains words such as "Men" and country names, which caused the previous version to
-    click a runner-row cell instead of a dropdown option and silently leave the ranking
-    unfiltered.
+    UTMB's current runner-search DOM does not expose the Nationality trigger with a stable
+    accessible label in headless Chromium.  So label-only lookup is unreliable.  This routine
+    first uses normal labelled/native controls, then *discovers* the correct control by opening
+    visible filter controls and checking which popup contains the exact requested option.
     """
     value_re = re.compile(rf"^\s*{re.escape(value)}\s*$", re.I)
     label_re = re.compile(rf"^\s*{re.escape(label)}\s*$", re.I)
 
-    def selected(control) -> bool:
+    def _is_visible(loc) -> bool:
+        try:
+            return loc.is_visible()
+        except Exception:
+            return False
+
+    def _selected_text(control) -> str:
+        parts: List[str] = []
         try:
             tag = control.evaluate("el => el.tagName.toLowerCase()")
             if tag == "select":
-                val = control.locator("option:checked").inner_text().strip()
-                return val.lower() == value.lower()
+                parts.extend(control.locator("option:checked").all_inner_texts())
         except Exception:
             pass
         for getter in (
             lambda: control.input_value(),
             lambda: control.get_attribute("value") or "",
             lambda: control.get_attribute("aria-label") or "",
+            lambda: control.get_attribute("placeholder") or "",
             lambda: control.inner_text() or "",
         ):
             try:
-                txt = str(getter()).strip()
-                if value.lower() in txt.lower():
-                    return True
+                parts.append(str(getter()))
             except Exception:
                 pass
-        return False
+        return " ".join(x.strip() for x in parts if x and x.strip())
 
-    # Native selects first.
-    selects = page.locator("select")
-    for i in range(min(selects.count(), 30)):
-        sel = selects.nth(i)
-        try:
-            if not sel.is_visible():
+    def selected(control) -> bool:
+        return value.lower() in _selected_text(control).lower()
+
+    def exact_visible_option():
+        # Prefer semantic popup roles.
+        for loc in (
+            page.get_by_role("option", name=value_re),
+            page.get_by_role("menuitem", name=value_re),
+            page.locator("[role='listbox']").get_by_text(value_re),
+            page.locator("[role='menu']").get_by_text(value_re),
+        ):
+            hit = _visible_locator(loc)
+            if hit is not None:
+                return hit
+
+        # Headless UI / Radix / custom popups without useful roles.
+        popup_candidates = page.locator(
+            "[data-radix-popper-content-wrapper], [role='dialog'], "
+            "[class*='menu' i], [class*='dropdown' i], [class*='popover' i], "
+            "[class*='option' i], [class*='select' i]"
+        )
+        for k in range(min(popup_candidates.count(), 120)):
+            pop = popup_candidates.nth(k)
+            if not _is_visible(pop):
                 continue
-            options = [x.strip() for x in sel.locator("option").all_inner_texts()]
-            if any(x.lower() == value.lower() for x in options):
-                sel.select_option(label=value)
-                page.wait_for_timeout(500)
-                if selected(sel):
-                    log(f"filter set: {label}={value} (native select)")
-                    return
-        except Exception:
-            continue
-
-    # Find controls locally around the filter label. We only click actual controls here.
-    controls = []
-    try:
-        labels = page.get_by_text(label_re)
-        for i in range(min(labels.count(), 10)):
-            lab = labels.nth(i)
-            if not lab.is_visible():
-                continue
-            for levels in range(1, 7):
-                ancestor = lab.locator("xpath=" + "/.." * levels)
-                loc = ancestor.locator("[role='combobox'], button, input")
-                for j in range(min(loc.count(), 15)):
-                    c = loc.nth(j)
-                    try:
-                        if c.is_visible():
-                            controls.append(c)
-                    except Exception:
-                        pass
-                if controls:
-                    break
-    except Exception:
-        pass
-
-    # Accessible labelled controls are also valid candidates.
-    try:
-        labelled = page.get_by_label(label_re)
-        for i in range(min(labelled.count(), 10)):
-            c = labelled.nth(i)
             try:
-                if c.is_visible():
-                    controls.insert(0, c)
+                hit = _visible_locator(pop.get_by_text(value_re))
+                if hit is not None:
+                    return hit
+            except Exception:
+                continue
+        return None
+
+    def choose_from_open_control(control, source: str) -> bool:
+        """Open one candidate and choose the exact option if this is the right dropdown."""
+        try:
+            if selected(control):
+                log(f"filter already selected: {label}={value} ({source})")
+                return True
+
+            tag = ""
+            try:
+                tag = control.evaluate("el => el.tagName.toLowerCase()")
             except Exception:
                 pass
-    except Exception:
-        pass
 
-    seen = set()
-    for control in controls:
-        try:
-            key = control.evaluate("el => el.outerHTML.slice(0,300)")
-            if key in seen:
-                continue
-            seen.add(key)
-            if selected(control):
-                log(f"filter already selected: {label}={value}")
-                return
+            # Native <select>.
+            if tag == "select":
+                options = [x.strip() for x in control.locator("option").all_inner_texts()]
+                if any(x.lower() == value.lower() for x in options):
+                    control.select_option(label=value)
+                    page.wait_for_timeout(500)
+                    log(f"filter set: {label}={value} ({source}/native)")
+                    return True
+                return False
+
+            # Open custom dropdown/autocomplete.
             control.click()
-            page.wait_for_timeout(250)
+            page.wait_for_timeout(300)
 
-            # Only accept values exposed as an option/menu item inside the opened popup.
-            option = None
-            for loc in [
-                page.get_by_role("option", name=value_re),
-                page.get_by_role("menuitem", name=value_re),
-                page.locator("[role='listbox']").get_by_text(value_re),
-                page.locator("[role='menu']").get_by_text(value_re),
-            ]:
-                option = _visible_locator(loc)
-                if option is not None:
-                    break
-
-            # Some headless UI libraries render an unroled popup. Restrict the fallback to
-            # currently visible popup-like containers instead of searching the whole page.
+            option = exact_visible_option()
             if option is None:
-                popup_candidates = page.locator(
-                    "[data-radix-popper-content-wrapper], [class*='menu' i], "
-                    "[class*='dropdown' i], [class*='option' i]"
+                # Nationality is sometimes a searchable combobox: after opening it, type in
+                # the visible popup search field (or the control itself if it is an input).
+                search_inputs = page.locator(
+                    "[role='listbox'] input, [role='dialog'] input, "
+                    "[class*='dropdown' i] input, [class*='popover' i] input"
                 )
-                for k in range(min(popup_candidates.count(), 50)):
-                    pop = popup_candidates.nth(k)
+                typed = False
+                for si in range(min(search_inputs.count(), 20)):
+                    inp = search_inputs.nth(si)
+                    if not _is_visible(inp):
+                        continue
                     try:
-                        if not pop.is_visible():
-                            continue
-                        cand = _visible_locator(pop.get_by_text(value_re))
-                        if cand is not None:
-                            option = cand
-                            break
+                        inp.fill(value)
+                        page.wait_for_timeout(500)
+                        typed = True
+                        break
                     except Exception:
                         continue
+                if not typed and tag == "input":
+                    try:
+                        control.fill(value)
+                        page.wait_for_timeout(500)
+                    except Exception:
+                        pass
+                option = exact_visible_option()
 
             if option is None:
                 try:
                     page.keyboard.press("Escape")
                 except Exception:
                     pass
-                continue
+                return False
 
             option.click()
             page.wait_for_timeout(700)
-            if selected(control):
-                log(f"filter set: {label}={value}")
-                return
-
-            # A few components replace the trigger node after selection. Verify in its local
-            # filter block before concluding failure.
-            try:
-                local_text = control.locator("xpath=../..").inner_text()
-                if value.lower() in local_text.lower():
-                    log(f"filter set: {label}={value} (local text verified)")
-                    return
-            except Exception:
-                pass
+            log(f"filter set: {label}={value} ({source}/option-discovery)")
+            return True
         except Exception:
             try:
                 page.keyboard.press("Escape")
             except Exception:
                 pass
+            return False
 
-    raise RuntimeError(f"Could not set/verify UTMB filter {label}={value}")
+    # 1) Native selects anywhere in main content.
+    native = page.locator("main select, select")
+    for i in range(min(native.count(), 40)):
+        c = native.nth(i)
+        if _is_visible(c) and choose_from_open_control(c, "select"):
+            return
+
+    # 2) Normal label-associated controls (works for Gender/Age Group on many UTMB builds).
+    controls = []
+    try:
+        labelled = page.get_by_label(label_re)
+        for i in range(min(labelled.count(), 12)):
+            c = labelled.nth(i)
+            if _is_visible(c):
+                controls.append(c)
+    except Exception:
+        pass
+
+    try:
+        labels = page.get_by_text(label_re)
+        for i in range(min(labels.count(), 12)):
+            lab = labels.nth(i)
+            if not _is_visible(lab):
+                continue
+            for levels in range(1, 7):
+                ancestor = lab.locator("xpath=" + "/.." * levels)
+                loc = ancestor.locator("select, [role='combobox'], button, input")
+                for j in range(min(loc.count(), 20)):
+                    c = loc.nth(j)
+                    if _is_visible(c):
+                        controls.append(c)
+                if controls:
+                    break
+    except Exception:
+        pass
+
+    seen: set[str] = set()
+    for c in controls:
+        try:
+            key = c.evaluate("el => el.outerHTML.slice(0,500)")
+        except Exception:
+            key = str(id(c))
+        if key in seen:
+            continue
+        seen.add(key)
+        if choose_from_open_control(c, "labelled"):
+            return
+
+    # 3) UTMB-specific robust fallback: discover the dropdown by the option it contains.
+    # Scope to <main> first so header/nav buttons are not touched.
+    candidates = page.locator(
+        "main [role='combobox'], main input[role='combobox'], main button, main input, "
+        "[role='combobox']"
+    )
+    diagnostics: List[str] = []
+    for i in range(min(candidates.count(), 100)):
+        c = candidates.nth(i)
+        if not _is_visible(c):
+            continue
+        try:
+            txt = _selected_text(c)
+            # Avoid obvious unrelated controls / pagination / nav.
+            if re.search(r"^(search|filters|general|20k|50k|100k|100m|men|women)?$", txt.strip(), re.I):
+                # Men may itself be a valid current value for the Gender control; only skip it
+                # when we are not looking for Men.
+                if not (value.lower() == "men" and txt.strip().lower() == "men"):
+                    continue
+            diagnostics.append(txt[:80] or "<blank>")
+        except Exception:
+            pass
+        if choose_from_open_control(c, "discovered"):
+            return
+
+    diag = " | ".join(diagnostics[:20])
+    raise RuntimeError(
+        f"Could not set/verify UTMB filter {label}={value}; visible controls={diag or 'none'}"
+    )
 
 
 def _runner_row_from_anchor(anchor, age_group: Optional[str]) -> Optional[dict]:
@@ -814,10 +876,12 @@ def _exact_filtered_rank(renderer: BrowserRenderer, target_score: int, age_group
     page.wait_for_timeout(1_500)
 
     try:
-        filters_btn = _visible_locator(page.get_by_text(re.compile(r"^\s*Filters\s*$", re.I)))
+        filters_btn = _visible_locator(page.get_by_role("button", name=re.compile(r"^\s*Filters\s*$", re.I)))
+        if filters_btn is None:
+            filters_btn = _visible_locator(page.get_by_text(re.compile(r"^\s*Filters\s*$", re.I)))
         if filters_btn is not None:
             filters_btn.click()
-            page.wait_for_timeout(400)
+            page.wait_for_timeout(700)
     except Exception:
         pass
 
