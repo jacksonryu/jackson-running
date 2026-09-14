@@ -795,10 +795,14 @@ def _runner_row_from_anchor(anchor, age_group: Optional[str]) -> Optional[dict]:
             continue
         if len(text) > 650:
             break
-        has_country = bool(re.search(r"South\s+Korea|Republic\s+of\s+Korea|Korea,\s*Republic\s+of", text, re.I))
+        # IMPORTANT: after UTMB applies Nationality=South Korea, the nationality is
+        # often rendered only as a flag/icon, so the row's visible text does NOT contain
+        # the literal words "South Korea".  Requiring country text therefore discards every
+        # valid filtered row.  Gender + age-group are visible in the main ranking rows and
+        # are enough here because the browser filter itself already constrains nationality.
         has_men = bool(re.search(r"\bMen\b", text, re.I))
         age_m = re.search(r"\b(U20|20-34|35-39|40-44|45-49|50-54|55-59|60-64|65-69|70-74|75-79|80-84|85\+)\b", text)
-        if not (has_country and has_men and age_m):
+        if not (has_men and age_m):
             continue
         age = age_m.group(1)
         if age_group and age != age_group:
@@ -913,9 +917,24 @@ def _exact_filtered_rank(renderer: BrowserRenderer, target_score: int, age_group
     while page_num <= max_pages:
         rows = _visible_filtered_runner_rows(page, age_group)
         if not rows:
+            # Capture a compact sample of visible runner-link ancestors for diagnostics.
+            samples: List[str] = []
+            anchors = page.locator("a[href*='/runner/']")
+            for si in range(min(anchors.count(), 12)):
+                try:
+                    a = anchors.nth(si)
+                    if not a.is_visible():
+                        continue
+                    name = re.sub(r"\s+", " ", a.inner_text()).strip()
+                    parent_text = re.sub(r"\s+", " ", a.locator("xpath=../..").inner_text()).strip()
+                    if name:
+                        samples.append(f"{name}: {parent_text[:120]}")
+                except Exception:
+                    continue
             raise RuntimeError(
-                "No visible South Korea/Men ranking rows after applying filters "
-                f"(age_group={age_group or 'ALL'}, page={page_num})."
+                "No visible filtered ranking rows after applying South Korea/Men filters "
+                f"(age_group={age_group or 'ALL'}, page={page_num}); "
+                f"runner_link_samples={' || '.join(samples[:5]) or 'none'}"
             )
         if page_size is None:
             page_size = len(rows)
