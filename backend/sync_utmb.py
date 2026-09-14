@@ -545,189 +545,252 @@ def _visible_locator(locator):
 
 
 def _choose_custom_filter(page, label: str, value: str) -> None:
-    """Choose a value from UTMB's filter controls without depending on CSS classes.
+    """Set one UTMB Runner Search filter and verify the selected value.
 
-    The UTMB Runner Search currently uses client-side custom dropdowns.  Their class names
-    are not stable, so this routine first tries native accessible controls, then the label's
-    nearby combobox/button, and finally visible comboboxes until the requested option appears.
+    Important: never use a page-wide text match for the option. The ranking table itself
+    contains words such as "Men" and country names, which caused the previous version to
+    click a runner-row cell instead of a dropdown option and silently leave the ranking
+    unfiltered.
     """
-
     value_re = re.compile(rf"^\s*{re.escape(value)}\s*$", re.I)
+    label_re = re.compile(rf"^\s*{re.escape(label)}\s*$", re.I)
 
-    # 1) Native/select controls exposed through an accessible label.
-    try:
-        labelled = page.get_by_label(re.compile(rf"^{re.escape(label)}$", re.I))
-        for i in range(min(labelled.count(), 8)):
-            control = labelled.nth(i)
-            if not control.is_visible():
-                continue
+    def selected(control) -> bool:
+        try:
             tag = control.evaluate("el => el.tagName.toLowerCase()")
             if tag == "select":
-                try:
-                    control.select_option(label=value)
-                    page.wait_for_timeout(400)
-                    return
-                except Exception:
-                    pass
+                val = control.locator("option:checked").inner_text().strip()
+                return val.lower() == value.lower()
+        except Exception:
+            pass
+        for getter in (
+            lambda: control.input_value(),
+            lambda: control.get_attribute("value") or "",
+            lambda: control.get_attribute("aria-label") or "",
+            lambda: control.inner_text() or "",
+        ):
             try:
-                control.click()
-                option = _visible_locator(page.get_by_text(value_re, exact=False))
-                if option is not None:
-                    option.click()
-                    page.wait_for_timeout(500)
+                txt = str(getter()).strip()
+                if value.lower() in txt.lower():
+                    return True
+            except Exception:
+                pass
+        return False
+
+    # Native selects first.
+    selects = page.locator("select")
+    for i in range(min(selects.count(), 30)):
+        sel = selects.nth(i)
+        try:
+            if not sel.is_visible():
+                continue
+            options = [x.strip() for x in sel.locator("option").all_inner_texts()]
+            if any(x.lower() == value.lower() for x in options):
+                sel.select_option(label=value)
+                page.wait_for_timeout(500)
+                if selected(sel):
+                    log(f"filter set: {label}={value} (native select)")
                     return
+        except Exception:
+            continue
+
+    # Find controls locally around the filter label. We only click actual controls here.
+    controls = []
+    try:
+        labels = page.get_by_text(label_re)
+        for i in range(min(labels.count(), 10)):
+            lab = labels.nth(i)
+            if not lab.is_visible():
+                continue
+            for levels in range(1, 7):
+                ancestor = lab.locator("xpath=" + "/.." * levels)
+                loc = ancestor.locator("[role='combobox'], button, input")
+                for j in range(min(loc.count(), 15)):
+                    c = loc.nth(j)
+                    try:
+                        if c.is_visible():
+                            controls.append(c)
+                    except Exception:
+                        pass
+                if controls:
+                    break
+    except Exception:
+        pass
+
+    # Accessible labelled controls are also valid candidates.
+    try:
+        labelled = page.get_by_label(label_re)
+        for i in range(min(labelled.count(), 10)):
+            c = labelled.nth(i)
+            try:
+                if c.is_visible():
+                    controls.insert(0, c)
             except Exception:
                 pass
     except Exception:
         pass
 
-    # 2) Any native select whose option list contains the desired value.
-    try:
-        selects = page.locator("select")
-        for i in range(min(selects.count(), 20)):
-            sel = selects.nth(i)
-            if not sel.is_visible():
-                continue
-            try:
-                options = sel.locator("option").all_inner_texts()
-            except Exception:
-                options = []
-            if any(str(x).strip().lower() == value.lower() for x in options):
-                sel.select_option(label=value)
-                page.wait_for_timeout(400)
-                return
-    except Exception:
-        pass
-
-    # 3) Click a control near the visible label text.
-    try:
-        labels = page.get_by_text(re.compile(rf"^\s*{re.escape(label)}\s*$", re.I))
-        for i in range(min(labels.count(), 8)):
-            lab = labels.nth(i)
-            if not lab.is_visible():
-                continue
-            for levels in range(1, 6):
-                ancestor = lab.locator("xpath=" + "/.." * levels)
-                controls = ancestor.locator("[role='combobox'], select, input, button")
-                for j in range(min(controls.count(), 10)):
-                    control = controls.nth(j)
-                    if not control.is_visible():
-                        continue
-                    try:
-                        txt = (control.inner_text() or "").strip().lower()
-                    except Exception:
-                        txt = ""
-                    if txt == "search":
-                        continue
-                    try:
-                        control.click()
-                        page.wait_for_timeout(250)
-                        option = _visible_locator(page.get_by_text(value_re, exact=False))
-                        if option is not None:
-                            option.click()
-                            page.wait_for_timeout(500)
-                            return
-                    except Exception:
-                        pass
-    except Exception:
-        pass
-
-    # 4) Last-resort discovery: open visible comboboxes one by one and look for the value.
-    candidates = page.locator("[role='combobox'], button")
-    for i in range(min(candidates.count(), 80)):
-        control = candidates.nth(i)
+    seen = set()
+    for control in controls:
         try:
-            if not control.is_visible():
+            key = control.evaluate("el => el.outerHTML.slice(0,300)")
+            if key in seen:
                 continue
-            txt = (control.inner_text() or "").strip().lower()
-            if txt in {"search", "sign in", "my utmb"}:
-                continue
-            control.click()
-            page.wait_for_timeout(220)
-            option = _visible_locator(page.get_by_text(value_re, exact=False))
-            if option is not None:
-                option.click()
-                page.wait_for_timeout(500)
+            seen.add(key)
+            if selected(control):
+                log(f"filter already selected: {label}={value}")
                 return
-            page.keyboard.press("Escape")
+            control.click()
+            page.wait_for_timeout(250)
+
+            # Only accept values exposed as an option/menu item inside the opened popup.
+            option = None
+            for loc in [
+                page.get_by_role("option", name=value_re),
+                page.get_by_role("menuitem", name=value_re),
+                page.locator("[role='listbox']").get_by_text(value_re),
+                page.locator("[role='menu']").get_by_text(value_re),
+            ]:
+                option = _visible_locator(loc)
+                if option is not None:
+                    break
+
+            # Some headless UI libraries render an unroled popup. Restrict the fallback to
+            # currently visible popup-like containers instead of searching the whole page.
+            if option is None:
+                popup_candidates = page.locator(
+                    "[data-radix-popper-content-wrapper], [class*='menu' i], "
+                    "[class*='dropdown' i], [class*='option' i]"
+                )
+                for k in range(min(popup_candidates.count(), 50)):
+                    pop = popup_candidates.nth(k)
+                    try:
+                        if not pop.is_visible():
+                            continue
+                        cand = _visible_locator(pop.get_by_text(value_re))
+                        if cand is not None:
+                            option = cand
+                            break
+                    except Exception:
+                        continue
+
+            if option is None:
+                try:
+                    page.keyboard.press("Escape")
+                except Exception:
+                    pass
+                continue
+
+            option.click()
+            page.wait_for_timeout(700)
+            if selected(control):
+                log(f"filter set: {label}={value}")
+                return
+
+            # A few components replace the trigger node after selection. Verify in its local
+            # filter block before concluding failure.
+            try:
+                local_text = control.locator("xpath=../..").inner_text()
+                if value.lower() in local_text.lower():
+                    log(f"filter set: {label}={value} (local text verified)")
+                    return
+            except Exception:
+                pass
         except Exception:
             try:
                 page.keyboard.press("Escape")
             except Exception:
                 pass
 
-    raise RuntimeError(f"Could not set UTMB filter {label}={value}")
+    raise RuntimeError(f"Could not set/verify UTMB filter {label}={value}")
 
 
-def _filtered_rank_rows(raw_html: str, age_group: Optional[str]) -> List[dict]:
-    """Return rows that belong to the South Korea / Men filtered ranking table.
+def _runner_row_from_anchor(anchor, age_group: Optional[str]) -> Optional[dict]:
+    """Parse one visible main-ranking runner row from the rendered DOM.
 
-    The page also contains a separate global top-3 widget.  Filtering demographics here keeps
-    those global cards from changing the calculated page position.
+    The exact UTMB CSS classes are intentionally ignored. We walk upward from the runner
+    profile link until we find the compact row containing nationality/gender/age text.
+    This also excludes the separate global Top-3 widget, which does not carry the normal
+    South Korea demographic row fields.
     """
-    rows = extract_rank_rows(raw_html)
-    out: List[dict] = []
-    for row in rows:
-        country = normalize_country(row.get("country"))
-        gender = normalize_gender(row.get("gender"))
-        age = str(row.get("age_group") or "").strip()
-        if country not in (None, "KR"):
-            continue
-        if gender not in (None, "Men"):
-            continue
-        if age_group and age and age != age_group:
-            continue
-        out.append(row)
+    try:
+        if not anchor.is_visible():
+            return None
+        href = anchor.get_attribute("href") or ""
+        if "/runner/" not in href:
+            return None
+        name = (anchor.inner_text() or "").strip()
+        if not name:
+            return None
+    except Exception:
+        return None
 
-    # If nationality metadata is present, require KR. This removes unrelated global top-3 cards.
-    if any(normalize_country(r.get("country")) == "KR" for r in out):
-        out = [r for r in out if normalize_country(r.get("country")) == "KR"]
-    return out
-
-
-def _click_next_rank_page(page, next_page_number: int, previous_signature: Tuple[Tuple[str, int], ...]) -> bool:
-    """Advance UTMB's client-side pagination by actually clicking its UI."""
-    # Prefer the explicit next page number. There may be another numeric element elsewhere,
-    # so try all visible exact matches and accept only a click that changes the ranking rows.
-    matches = page.get_by_text(re.compile(rf"^\s*{next_page_number}\s*$"))
-    for i in range(min(matches.count(), 12)):
-        item = matches.nth(i)
+    for levels in range(1, 9):
         try:
-            if not item.is_visible():
-                continue
-            item.click()
-            try:
-                page.wait_for_load_state("networkidle", timeout=8_000)
-            except Exception:
-                pass
-            page.wait_for_timeout(700)
-            sig = tuple((str(r.get("id")), int(r.get("score", 0))) for r in extract_rank_rows(page.content())[:8])
-            if sig and sig != previous_signature:
-                return True
+            node = anchor.locator("xpath=" + "/.." * levels)
+            text = re.sub(r"\s+", " ", node.inner_text()).strip()
         except Exception:
             continue
+        if len(text) > 650:
+            break
+        has_country = bool(re.search(r"South\s+Korea|Republic\s+of\s+Korea|Korea,\s*Republic\s+of", text, re.I))
+        has_men = bool(re.search(r"\bMen\b", text, re.I))
+        age_m = re.search(r"\b(U20|20-34|35-39|40-44|45-49|50-54|55-59|60-64|65-69|70-74|75-79|80-84|85\+)\b", text)
+        if not (has_country and has_men and age_m):
+            continue
+        age = age_m.group(1)
+        if age_group and age != age_group:
+            return None
+        return {
+            "name": name,
+            "id": href,
+            "age_group": age,
+            "row_text": text,
+        }
+    return None
 
-    # Fallback to accessible next buttons/icons.
-    for selector in [
-        "button[aria-label*='next' i]",
-        "a[aria-label*='next' i]",
-        "button[title*='next' i]",
-        "a[title*='next' i]",
-    ]:
-        loc = page.locator(selector)
-        for i in range(min(loc.count(), 6)):
+
+def _visible_filtered_runner_rows(page, age_group: Optional[str]) -> List[dict]:
+    rows: List[dict] = []
+    seen: set[str] = set()
+    anchors = page.locator("a[href*='/runner/']")
+    for i in range(min(anchors.count(), 120)):
+        row = _runner_row_from_anchor(anchors.nth(i), age_group)
+        if not row:
+            continue
+        rid = str(row["id"])
+        if rid in seen:
+            continue
+        seen.add(rid)
+        rows.append(row)
+    return rows
+
+
+def _click_next_rank_page(page, next_page_number: int, previous_ids: Tuple[str, ...]) -> bool:
+    """Advance UTMB ranking pagination and confirm that visible filtered rows changed."""
+    candidates = [
+        page.get_by_text(re.compile(rf"^\s*{next_page_number}\s*$")),
+        page.locator("button[aria-label*='next' i]"),
+        page.locator("a[aria-label*='next' i]"),
+        page.locator("button[title*='next' i]"),
+        page.locator("a[title*='next' i]"),
+    ]
+    for loc in candidates:
+        for i in range(min(loc.count(), 15)):
             item = loc.nth(i)
             try:
-                if not item.is_visible() or item.is_disabled():
+                if not item.is_visible():
+                    continue
+                if hasattr(item, "is_disabled") and item.is_disabled():
                     continue
                 item.click()
                 try:
                     page.wait_for_load_state("networkidle", timeout=8_000)
                 except Exception:
                     pass
-                page.wait_for_timeout(700)
-                sig = tuple((str(r.get("id")), int(r.get("score", 0))) for r in extract_rank_rows(page.content())[:8])
-                if sig and sig != previous_signature:
+                page.wait_for_timeout(800)
+                now = tuple(str(r["id"]) for r in _visible_filtered_runner_rows(page, None)[:8])
+                if now and now != previous_ids:
                     return True
             except Exception:
                 continue
@@ -735,12 +798,14 @@ def _click_next_rank_page(page, next_page_number: int, previous_signature: Tuple
 
 
 def _exact_filtered_rank(renderer: BrowserRenderer, target_score: int, age_group: Optional[str]) -> dict:
-    """Read exact position after applying UTMB's own South Korea/Men filters."""
+    """Get exact position from UTMB's own South Korea / Men filtered table.
+
+    We do not infer the rank from scores. We simply count the visible filtered rows while
+    paging until runner 5913759 appears. This avoids the old parser bug where category labels
+    such as 100K were mistaken for index scores.
+    """
     page = renderer._page
-    log(
-        "opening filtered ranking: South Korea / Men"
-        + (f" / {age_group}" if age_group else "")
-    )
+    log("opening filtered ranking: South Korea / Men" + (f" / {age_group}" if age_group else ""))
     page.goto(RUNNER_SEARCH_URL, wait_until="domcontentloaded", timeout=60_000)
     try:
         page.wait_for_load_state("networkidle", timeout=15_000)
@@ -748,7 +813,6 @@ def _exact_filtered_rank(renderer: BrowserRenderer, target_score: int, age_group
         pass
     page.wait_for_timeout(1_500)
 
-    # Expand the filters panel when UTMB collapses it on desktop/mobile layouts.
     try:
         filters_btn = _visible_locator(page.get_by_text(re.compile(r"^\s*Filters\s*$", re.I)))
         if filters_btn is not None:
@@ -762,8 +826,6 @@ def _exact_filtered_rank(renderer: BrowserRenderer, target_score: int, age_group
     if age_group:
         _choose_custom_filter(page, "Age Group", age_group)
 
-    # UTMB exposes a Search button; filters may already trigger a refresh, but clicking it makes
-    # the intended state explicit and mirrors the user's working manual flow.
     try:
         search = _visible_locator(page.get_by_role("button", name=re.compile(r"^search$", re.I)))
         if search is None:
@@ -780,30 +842,27 @@ def _exact_filtered_rank(renderer: BrowserRenderer, target_score: int, age_group
 
     target_runner = runner_id_from_url(PROFILE_URL)
     page_num = 1
-    max_pages = 80
-    page_size: Optional[int] = None
     scanned = 0
+    page_size: Optional[int] = None
+    max_pages = 100
 
     while page_num <= max_pages:
-        raw = page.content()
-        rows = _filtered_rank_rows(raw, age_group)
+        rows = _visible_filtered_runner_rows(page, age_group)
         if not rows:
             raise RuntimeError(
-                "UTMB filtered ranking rendered but no South Korea ranking rows were parsed "
+                "No visible South Korea/Men ranking rows after applying filters "
                 f"(age_group={age_group or 'ALL'}, page={page_num})."
             )
         if page_size is None:
             page_size = len(rows)
 
-        log(
-            f"filtered rank page {page_num}: rows={len(rows)} "
-            f"score_range={max(r['score'] for r in rows)}-{min(r['score'] for r in rows)}"
-        )
+        first_names = ", ".join(r["name"] for r in rows[:3])
+        log(f"filtered rank page {page_num}: rows={len(rows)} first={first_names}")
 
         for idx, row in enumerate(rows):
             rid = str(row.get("id") or "")
             name = str(row.get("name") or "")
-            if target_runner in rid or re.search(r"\bJesun\s+RYU\b", name, flags=re.I):
+            if target_runner in rid or re.search(r"\bJesun\s+RYU\b", name, re.I):
                 exact_rank = scanned + idx + 1
                 return {
                     "status": "exact_from_utmb_filtered_ranking",
@@ -811,29 +870,19 @@ def _exact_filtered_rank(renderer: BrowserRenderer, target_score: int, age_group
                     "page": page_num,
                     "page_size": page_size,
                     "matched_name": name,
-                    "matched_score": row.get("score"),
                     "age_group_filter": age_group,
                 }
 
-        # Rankings are descending. Once the whole page is below the user's score, the target
-        # should already have appeared unless UTMB's filters/data changed; stop with a clear error.
-        min_score = min(int(r.get("score", 0)) for r in rows)
-        if min_score < target_score:
-            raise RuntimeError(
-                f"Passed target score {target_score} without finding runner {target_runner} "
-                f"in filtered ranking (page={page_num}, min_score={min_score})."
-            )
-
-        previous_signature = tuple((str(r.get("id")), int(r.get("score", 0))) for r in rows[:8])
+        previous_ids = tuple(str(r["id"]) for r in rows[:8])
         scanned += len(rows)
-        if not _click_next_rank_page(page, page_num + 1, previous_signature):
+        if not _click_next_rank_page(page, page_num + 1, previous_ids):
             raise RuntimeError(
-                f"Could not advance UTMB filtered ranking from page {page_num} to {page_num + 1}."
+                f"Runner {target_runner} was not found and UTMB pagination could not advance "
+                f"after filtered page {page_num}."
             )
         page_num += 1
 
     raise RuntimeError(f"Runner not found in first {max_pages} filtered ranking pages")
-
 
 def estimate_korea_rank(session: requests.Session, target_score: int, age_group: str, renderer: Optional[BrowserRenderer] = None) -> dict:
     """Get exact Korea male and M35-39 ranks using UTMB's own visible filters.
