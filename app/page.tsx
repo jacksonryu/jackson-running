@@ -14,7 +14,21 @@ type ReportRow = {
   created_at: string;
 };
 
-type Tab = "overview" | "simple" | "detail" | "coach";
+type Tab = "overview" | "simple" | "peak" | "detail" | "coach";
+type RaceMode = "overall" | "10k" | "half" | "marathon" | "trail50" | "trail100";
+
+type PeakHistoryRow = {
+  id?: number;
+  metric_date: string;
+  race_mode: RaceMode;
+  overall_score: number | null;
+  recovery_score: number | null;
+  aerobic_score: number | null;
+  speed_score: number | null;
+  climbing_score: number | null;
+  durability_score: number | null;
+  training_state_score: number | null;
+};
 type Tone = "good" | "neutral" | "warn";
 
 type Signal = {
@@ -79,6 +93,96 @@ function clamp(v: number, min = 0, max = 100) {
 
 function safeNumber(v: unknown): number | null {
   return typeof v === "number" && Number.isFinite(v) ? v : null;
+}
+
+
+const raceModeLabels: Record<RaceMode, string> = {
+  overall: "OVERALL",
+  "10k": "10K",
+  half: "HALF",
+  marathon: "MARATHON",
+  trail50: "TRAIL 50K",
+  trail100: "TRAIL 100K",
+};
+
+const peakAxisLabels = ["회복", "기본 엔진", "스피드", "오르막", "내구성", "훈련 적응"];
+
+function scoreTone(score: number | null): Tone {
+  if (score === null) return "neutral";
+  if (score >= 95) return "good";
+  if (score < 80) return "warn";
+  return "neutral";
+}
+
+function scoreText(score: number | null) {
+  return score === null ? "—" : `${n(score, 0)}%`;
+}
+
+function polygonPoints(values: number[], radius: number, cx: number, cy: number) {
+  const count = values.length;
+  return values.map((value, i) => {
+    const angle = -Math.PI / 2 + (Math.PI * 2 * i) / count;
+    const r = radius * clamp(value, 0, 110) / 110;
+    return `${cx + Math.cos(angle) * r},${cy + Math.sin(angle) * r}`;
+  }).join(" ");
+}
+
+function RadarChart({ current, peak }: { current: Array<number | null>; peak: Array<number | null> }) {
+  const size = 330;
+  const cx = size / 2;
+  const cy = size / 2;
+  const radius = 112;
+  const rings = [25, 50, 75, 100];
+  const currentVals = current.map((v) => v ?? 0);
+  const peakVals = peak.map((v) => v ?? 0);
+  const hasCurrent = current.some((v) => v !== null);
+
+  return (
+    <div className="relative mx-auto aspect-square w-full max-w-[360px]">
+      <svg viewBox={`0 0 ${size} ${size}`} className="h-full w-full overflow-visible">
+        {rings.map((ring) => (
+          <polygon key={ring} points={polygonPoints(Array(6).fill(ring), radius, cx, cy)} fill="none" stroke="#27272a" strokeWidth="1" />
+        ))}
+        {peakAxisLabels.map((_, i) => {
+          const angle = -Math.PI / 2 + (Math.PI * 2 * i) / 6;
+          const x = cx + Math.cos(angle) * radius;
+          const y = cy + Math.sin(angle) * radius;
+          return <line key={i} x1={cx} y1={cy} x2={x} y2={y} stroke="#27272a" strokeWidth="1" />;
+        })}
+        <polygon points={polygonPoints(peakVals, radius, cx, cy)} fill="rgba(113,113,122,.08)" stroke="#52525b" strokeDasharray="5 5" strokeWidth="1.5" />
+        <polygon points={polygonPoints(currentVals, radius, cx, cy)} fill="rgba(34,211,238,.16)" stroke="#22d3ee" strokeWidth="2.5" />
+        {currentVals.map((v, i) => {
+          const angle = -Math.PI / 2 + (Math.PI * 2 * i) / 6;
+          const r = radius * clamp(v, 0, 110) / 110;
+          return <circle key={i} cx={cx + Math.cos(angle) * r} cy={cy + Math.sin(angle) * r} r="3.5" fill="#67e8f9" />;
+        })}
+        {peakAxisLabels.map((label, i) => {
+          const angle = -Math.PI / 2 + (Math.PI * 2 * i) / 6;
+          const r = radius + 34;
+          const x = cx + Math.cos(angle) * r;
+          const y = cy + Math.sin(angle) * r;
+          return <text key={label} x={x} y={y} textAnchor="middle" dominantBaseline="middle" fill="#71717a" fontSize="11">{label}</text>;
+        })}
+      </svg>
+      {!hasCurrent && <div className="absolute inset-0 grid place-items-center"><div className="rounded-full border border-zinc-800 bg-black/80 px-4 py-2 text-xs text-zinc-500">히스토리 백필 후 자동 표시</div></div>}
+    </div>
+  );
+}
+
+function PeakScoreCard({ label, score, peakDate, detail }: { label: string; score: number | null; peakDate: string | null; detail: string }) {
+  const tone = scoreTone(score);
+  return (
+    <div className={`rounded-2xl border p-5 ${toneClasses[tone].border} ${toneClasses[tone].bg}`}>
+      <div className="flex items-center justify-between gap-3">
+        <div className="text-sm text-zinc-500">{label}</div>
+        <Pill tone={tone}>{score === null ? "대기" : score >= 100 ? "NEW PEAK" : score >= 95 ? "PEAK 근접" : score < 80 ? "보강 필요" : "성장 중"}</Pill>
+      </div>
+      <div className="mt-3 text-4xl font-semibold tracking-tight">{scoreText(score)}</div>
+      <div className="mt-3"><ProgressBar value={score ?? 0} tone={tone} /></div>
+      <div className="mt-3 text-xs leading-5 text-zinc-500">{detail}</div>
+      <div className="mt-2 text-[11px] text-zinc-600">{peakDate ? `기준 최고점 ${prettyDate(peakDate, false)}` : "전체 과거 데이터 계산 후 최고점 날짜 표시"}</div>
+    </div>
+  );
 }
 
 function Icon({ name, className = "h-5 w-5" }: { name: string; className?: string }) {
@@ -343,6 +447,9 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("overview");
+  const [raceMode, setRaceMode] = useState<RaceMode>("overall");
+  const [peakRows, setPeakRows] = useState<PeakHistoryRow[]>([]);
+  const [peakLoading, setPeakLoading] = useState(false);
 
   useEffect(() => {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -379,6 +486,33 @@ export default function Home() {
     load();
     return () => { cancelled = true; };
   }, []);
+
+  useEffect(() => {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (!supabaseUrl || !supabaseAnonKey) return;
+
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, { auth: { persistSession: false, autoRefreshToken: false } });
+    let cancelled = false;
+
+    async function loadPeakHistory() {
+      setPeakLoading(true);
+      const { data, error: peakError } = await supabase
+        .from("peak_history")
+        .select("metric_date,race_mode,overall_score,recovery_score,aerobic_score,speed_score,climbing_score,durability_score,training_state_score")
+        .eq("race_mode", raceMode)
+        .order("metric_date", { ascending: true })
+        .limit(5000);
+
+      if (cancelled) return;
+      if (peakError || !Array.isArray(data)) setPeakRows([]);
+      else setPeakRows(data as PeakHistoryRow[]);
+      setPeakLoading(false);
+    }
+
+    loadPeakHistory();
+    return () => { cancelled = true; };
+  }, [raceMode]);
 
   const view = useMemo(() => {
     if (!report) return null;
@@ -475,6 +609,7 @@ export default function Home() {
   const tabs: { id: Tab; label: string }[] = [
     { id: "overview", label: "한눈에" },
     { id: "simple", label: "쉽게 보기" },
+    { id: "peak", label: "PEAK" },
     { id: "detail", label: "상세" },
     { id: "coach", label: "코치" },
   ];
@@ -588,6 +723,91 @@ export default function Home() {
           </section>
         </div>
       )}
+
+
+      {tab === "peak" && (() => {
+        const latestPeak = peakRows.length ? peakRows[peakRows.length - 1] : null;
+        const bestPeak = peakRows.length ? peakRows.reduce((best, row) => (safeNumber(row.overall_score) ?? -1) > (safeNumber(best.overall_score) ?? -1) ? row : best, peakRows[0]) : null;
+        const currentOverall = safeNumber(latestPeak?.overall_score);
+        const bestOverall = safeNumber(bestPeak?.overall_score);
+        const match = currentOverall !== null && bestOverall && bestOverall > 0 ? currentOverall / bestOverall * 100 : null;
+        const currentAxes = [
+          safeNumber(latestPeak?.recovery_score), safeNumber(latestPeak?.aerobic_score), safeNumber(latestPeak?.speed_score),
+          safeNumber(latestPeak?.climbing_score), safeNumber(latestPeak?.durability_score), safeNumber(latestPeak?.training_state_score),
+        ];
+        const bestAxes = bestPeak ? [
+          safeNumber(bestPeak.recovery_score), safeNumber(bestPeak.aerobic_score), safeNumber(bestPeak.speed_score),
+          safeNumber(bestPeak.climbing_score), safeNumber(bestPeak.durability_score), safeNumber(bestPeak.training_state_score),
+        ] : [null, null, null, null, null, null];
+
+        const provisionalNotes = [
+          { label: "최근 28일 거리", value: `${fmt(v.distance_28d_km)} km`, detail: "기본 지구력 계산에 사용" },
+          { label: "최근 28일 상승", value: `${fmt(v.elevation_28d_m)} m`, detail: "트레일/오르막 준비도 계산에 사용" },
+          { label: "롱런 후반 저하", value: fmt(lr.latest_durability_decline_pct, "%"), detail: "낮을수록 장거리 내구성이 좋음" },
+          { label: "최근 인터벌", value: ia.status === "ok" ? `${fmt(ia.rep_count)} reps` : "—", detail: "스피드/역치 준비도 계산에 사용" },
+        ];
+
+        return (
+          <div className="mt-6 space-y-5 sm:mt-8">
+            <section className="relative overflow-hidden rounded-[32px] border border-cyan-900/40 bg-gradient-to-br from-cyan-950/30 via-zinc-950 to-black p-6 sm:p-8">
+              <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-cyan-400/10 blur-3xl" />
+              <div className="relative grid gap-8 lg:grid-cols-[1.05fr_.95fr] lg:items-center">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2 text-xs uppercase tracking-[0.24em] text-zinc-500"><span className="h-2 w-2 rounded-full bg-cyan-300" />Peak / Progress</div>
+                  <div className="mt-5 flex items-end gap-3">
+                    <div className="text-6xl font-bold tracking-[-0.06em] sm:text-7xl">{match === null ? "—" : n(match, 0)}</div>
+                    <div className="pb-2 text-lg text-zinc-500">% OF PEAK</div>
+                  </div>
+                  <p className="mt-4 max-w-xl text-sm leading-7 text-zinc-400">
+                    {match === null ? "페이지는 준비됐어. Garmin 전체 이력 → Supabase 백필 → Peak Engine 계산이 끝나면 현재 몸 상태를 과거 최고점과 자동 비교해." : match >= 100 ? "현재가 기존 최고점을 넘어선 새로운 최고 상태야." : match >= 95 ? "역대 최고점에 거의 도달한 상태야. 레이스 특이 자극만 잘 맞추면 돼." : match >= 85 ? "좋은 빌드업 구간이지만 몇 축은 아직 이전 최고점 아래야." : "현재는 최고점 대비 빌드업 중이야. 부족한 축을 확인해서 올리는 단계야."}
+                  </p>
+                  <div className="mt-6 flex flex-wrap gap-2">
+                    {(Object.keys(raceModeLabels) as RaceMode[]).map((mode) => <button key={mode} onClick={() => setRaceMode(mode)} className={`rounded-full border px-3 py-2 text-xs font-semibold transition ${raceMode === mode ? "border-cyan-500/70 bg-cyan-950/70 text-cyan-200" : "border-zinc-800 bg-black/30 text-zinc-500 hover:text-zinc-300"}`}>{raceModeLabels[mode]}</button>)}
+                  </div>
+                </div>
+                <RadarChart current={currentAxes} peak={bestAxes} />
+              </div>
+            </section>
+
+            <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              <PeakScoreCard label="회복 상태" score={safeNumber(latestPeak?.recovery_score)} peakDate={bestPeak?.metric_date ?? null} detail="HRV · 안정 심박 · 수면 · 최근 피로 균형" />
+              <PeakScoreCard label="기본 엔진" score={safeNumber(latestPeak?.aerobic_score)} peakDate={bestPeak?.metric_date ?? null} detail="28일 거리 · 시간 · easy 효율 기반" />
+              <PeakScoreCard label="스피드 / 역치" score={safeNumber(latestPeak?.speed_score)} peakDate={bestPeak?.metric_date ?? null} detail="최근 인터벌 품질과 빠른 페이스 노출" />
+              <PeakScoreCard label="오르막" score={safeNumber(latestPeak?.climbing_score)} peakDate={bestPeak?.metric_date ?? null} detail="상승고도 · 트레일 부하 · 업힐 적응" />
+              <PeakScoreCard label="롱런 내구성" score={safeNumber(latestPeak?.durability_score)} peakDate={bestPeak?.metric_date ?? null} detail="decoupling과 후반 효율 저하" />
+              <PeakScoreCard label="훈련 적응" score={safeNumber(latestPeak?.training_state_score)} peakDate={bestPeak?.metric_date ?? null} detail="최근 부하와 체력 베이스의 균형" />
+            </section>
+
+            <section className="grid gap-4 lg:grid-cols-[1.2fr_.8fr]">
+              <div className="rounded-[28px] border border-zinc-800 bg-zinc-950/70 p-5 sm:p-6">
+                <div className="flex items-center justify-between gap-4"><div><div className="text-sm text-zinc-500">현재 계산 입력값</div><h3 className="mt-1 text-xl font-semibold">Peak Engine이 볼 데이터</h3></div><Icon name="trend" className="h-5 w-5 text-zinc-600" /></div>
+                <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                  {provisionalNotes.map((item) => <div key={item.label} className="rounded-2xl bg-black/40 p-4"><div className="text-xs text-zinc-500">{item.label}</div><div className="mt-2 text-2xl font-semibold">{item.value}</div><div className="mt-2 text-xs leading-5 text-zinc-600">{item.detail}</div></div>)}
+                </div>
+              </div>
+              <div className="rounded-[28px] border border-zinc-800 bg-zinc-950/70 p-5 sm:p-6">
+                <div className="text-sm text-zinc-500">상태</div>
+                <h3 className="mt-1 text-xl font-semibold">히스토리 계산 준비</h3>
+                <div className="mt-5 space-y-3">
+                  <SimpleBullet tone="good" title="PEAK UI 준비 완료" detail="사이트 페이지는 지금부터 사용할 수 있어." />
+                  <SimpleBullet tone={peakRows.length ? "good" : "neutral"} title={peakRows.length ? "Peak history 연결됨" : "과거 이력 계산 대기"} detail={peakRows.length ? `${peakRows.length}일치 스냅샷을 불러왔어.` : "Intervals 전체 가져오기 완료 후 Full History Backfill과 Peak Engine을 돌리면 자동으로 채워져."} />
+                  <SimpleBullet tone="neutral" title={`${raceModeLabels[raceMode]} 기준`} detail="레이스 종류에 따라 거리·스피드·오르막·내구성 가중치를 다르게 적용할 예정." />
+                </div>
+                {peakLoading && <div className="mt-4 text-xs text-cyan-400">Peak history 확인 중...</div>}
+              </div>
+            </section>
+
+            {peakRows.length > 1 && (
+              <section className="rounded-[28px] border border-zinc-800 bg-zinc-950/70 p-5 sm:p-6">
+                <div className="flex items-center justify-between gap-4"><div><div className="text-sm text-zinc-500">Form timeline</div><h3 className="mt-1 text-xl font-semibold">최고점으로 가는 흐름</h3></div><div className="text-xs text-zinc-600">{raceModeLabels[raceMode]}</div></div>
+                <div className="mt-6 flex h-40 items-end gap-1 overflow-hidden">
+                  {peakRows.slice(-90).map((row, i) => { const score = safeNumber(row.overall_score) ?? 0; return <div key={`${row.metric_date}-${i}`} className="min-w-0 flex-1 rounded-t-sm bg-cyan-500/60" style={{ height: `${Math.max(4, clamp(score, 0, 110) / 110 * 100)}%` }} title={`${row.metric_date}: ${score}`} />; })}
+                </div>
+              </section>
+            )}
+          </div>
+        );
+      })()}
 
       {tab === "detail" && (
         <div className="mt-6 space-y-5 sm:mt-8">
