@@ -29,6 +29,32 @@ type PeakHistoryRow = {
   durability_score: number | null;
   training_state_score: number | null;
 };
+
+
+type UtmbSnapshot = {
+  snapshot_date: string;
+  captured_at: string;
+  runner_name: string | null;
+  age_group: string | null;
+  overall_index: number | null;
+  index_20k: number | null;
+  index_50k: number | null;
+  index_100k: number | null;
+  index_100m: number | null;
+  best_score: number | null;
+  finished_races: number | null;
+  top10: number | null;
+  korea_men_rank_est: number | null;
+  korea_men_rank_low: number | null;
+  korea_men_rank_high: number | null;
+  korea_age_rank_est: number | null;
+  korea_age_rank_low: number | null;
+  korea_age_rank_high: number | null;
+  rank_status: string | null;
+  rank_sample_size: number | null;
+  profile_url: string | null;
+};
+
 type Tone = "good" | "neutral" | "warn";
 
 type Signal = {
@@ -450,6 +476,8 @@ export default function Home() {
   const [raceMode, setRaceMode] = useState<RaceMode>("overall");
   const [peakRows, setPeakRows] = useState<PeakHistoryRow[]>([]);
   const [peakLoading, setPeakLoading] = useState(false);
+  const [utmb, setUtmb] = useState<UtmbSnapshot | null>(null);
+  const [utmbLoading, setUtmbLoading] = useState(false);
 
   useEffect(() => {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -513,6 +541,33 @@ export default function Home() {
     loadPeakHistory();
     return () => { cancelled = true; };
   }, [raceMode]);
+
+  useEffect(() => {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (!supabaseUrl || !supabaseAnonKey) return;
+
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, { auth: { persistSession: false, autoRefreshToken: false } });
+    let cancelled = false;
+
+    async function loadUtmb() {
+      setUtmbLoading(true);
+      const { data, error: utmbError } = await supabase
+        .from("utmb_snapshots")
+        .select("snapshot_date,captured_at,runner_name,age_group,overall_index,index_20k,index_50k,index_100k,index_100m,best_score,finished_races,top10,korea_men_rank_est,korea_men_rank_low,korea_men_rank_high,korea_age_rank_est,korea_age_rank_low,korea_age_rank_high,rank_status,rank_sample_size,profile_url")
+        .order("captured_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (cancelled) return;
+      if (!utmbError && data) setUtmb(data as UtmbSnapshot);
+      else setUtmb(null);
+      setUtmbLoading(false);
+    }
+
+    loadUtmb();
+    return () => { cancelled = true; };
+  }, []);
 
   const view = useMemo(() => {
     if (!report) return null;
@@ -766,6 +821,73 @@ export default function Home() {
                   </div>
                 </div>
                 <RadarChart current={currentAxes} peak={bestAxes} />
+              </div>
+            </section>
+
+            <section className="grid gap-4 lg:grid-cols-[1.1fr_.9fr]">
+              <div className="relative overflow-hidden rounded-[28px] border border-orange-900/40 bg-gradient-to-br from-orange-950/25 via-zinc-950 to-black p-5 sm:p-6">
+                <div className="absolute -right-16 -top-16 h-44 w-44 rounded-full bg-orange-400/10 blur-3xl" />
+                <div className="relative">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <div className="text-xs uppercase tracking-[0.22em] text-orange-300/70">UTMB INDEX</div>
+                      <div className="mt-2 flex items-end gap-3">
+                        <div className="text-6xl font-bold tracking-[-0.06em]">{utmb?.overall_index ?? "—"}</div>
+                        <div className="pb-2 text-sm text-zinc-500">OVERALL</div>
+                      </div>
+                    </div>
+                    <div className="rounded-full border border-zinc-800 bg-black/40 px-3 py-2 text-[11px] text-zinc-500">{utmb ? `갱신 ${prettyDate(utmb.captured_at)}` : utmbLoading ? "UTMB 확인 중..." : "동기화 대기"}</div>
+                  </div>
+
+                  <div className="mt-5 grid grid-cols-4 gap-2">
+                    {[
+                      ["20K", utmb?.index_20k],
+                      ["50K", utmb?.index_50k],
+                      ["100K", utmb?.index_100k],
+                      ["100M", utmb?.index_100m],
+                    ].map(([label, value]) => (
+                      <div key={String(label)} className="rounded-2xl border border-zinc-800/80 bg-black/35 p-3">
+                        <div className="text-[10px] text-zinc-600">{label}</div>
+                        <div className="mt-1 text-xl font-semibold">{typeof value === "number" ? value : "—"}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-4 flex flex-wrap gap-2 text-xs text-zinc-500">
+                    <span className="rounded-full border border-zinc-800 px-3 py-1.5">Best score {utmb?.best_score ?? "—"}</span>
+                    <span className="rounded-full border border-zinc-800 px-3 py-1.5">Finished {utmb?.finished_races ?? "—"}</span>
+                    <span className="rounded-full border border-zinc-800 px-3 py-1.5">Top 10 {utmb?.top10 ?? "—"}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-[28px] border border-zinc-800 bg-zinc-950/70 p-5 sm:p-6">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <div className="text-xs uppercase tracking-[0.22em] text-zinc-600">KOREA RANK</div>
+                    <h3 className="mt-1 text-xl font-semibold">대한민국에서 지금 어디쯤?</h3>
+                  </div>
+                  <Icon name="target" className="h-5 w-5 text-zinc-600" />
+                </div>
+
+                <div className="mt-5 grid grid-cols-2 gap-3">
+                  <div className="rounded-2xl bg-black/40 p-4">
+                    <div className="text-xs text-zinc-500">한국 남자 · Overall</div>
+                    <div className="mt-2 text-4xl font-semibold tracking-tight">{utmb?.korea_men_rank_est ? `#${utmb.korea_men_rank_est}` : "—"}</div>
+                    <div className="mt-2 text-[11px] text-zinc-600">{utmb?.korea_men_rank_low && utmb?.korea_men_rank_high ? `추정 범위 #${utmb.korea_men_rank_low}–#${utmb.korea_men_rank_high}` : "랭킹 표본 계산 대기"}</div>
+                  </div>
+                  <div className="rounded-2xl bg-black/40 p-4">
+                    <div className="text-xs text-zinc-500">한국 남자 · {utmb?.age_group ?? "35–39"}</div>
+                    <div className="mt-2 text-4xl font-semibold tracking-tight">{utmb?.korea_age_rank_est ? `#${utmb.korea_age_rank_est}` : "—"}</div>
+                    <div className="mt-2 text-[11px] text-zinc-600">{utmb?.korea_age_rank_low && utmb?.korea_age_rank_high ? `추정 범위 #${utmb.korea_age_rank_low}–#${utmb.korea_age_rank_high}` : "연령대 표본 계산 대기"}</div>
+                  </div>
+                </div>
+
+                <div className="mt-4 rounded-2xl border border-zinc-800/80 bg-zinc-900/40 p-4 text-xs leading-5 text-zinc-500">
+                  {utmb?.rank_status === "estimated_from_public_ranking_sample"
+                    ? `UTMB 공개 랭킹을 표본 추출해 계산한 추정치야. 표본 ${utmb.rank_sample_size ?? "—"}명 · 매일 자동 갱신.`
+                    : "UTMB는 국가별 공식 순위를 공개 API로 제공하지 않아, 공개 랭킹에서 표본 계산이 가능할 때만 추정 순위를 표시해."}
+                </div>
               </div>
             </section>
 
