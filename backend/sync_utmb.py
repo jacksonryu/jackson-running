@@ -528,153 +528,343 @@ def even_sample_pages(last_page: int, count: int) -> List[int]:
     return sorted(pages)
 
 
-def estimate_korea_rank(session: requests.Session, target_score: int, age_group: str, renderer: Optional[BrowserRenderer] = None) -> dict:
-    """Estimate Korea men's rank from the public UTMB ranking table.
+def _visible_locator(locator):
+    """Return the first visible locator item, or None."""
+    try:
+        count = locator.count()
+    except Exception:
+        return None
+    for i in range(min(count, 30)):
+        item = locator.nth(i)
+        try:
+            if item.is_visible():
+                return item
+        except Exception:
+            continue
+    return None
 
-    UTMB does not document a public country-ranking API. Instead of hammering every ranking
-    page, this function finds the score cutoff page and takes an evenly spaced sample of the
-    public ranking. The UI explicitly labels the result as an estimate and stores a 95% range.
+
+def _choose_custom_filter(page, label: str, value: str) -> None:
+    """Choose a value from UTMB's filter controls without depending on CSS classes.
+
+    The UTMB Runner Search currently uses client-side custom dropdowns.  Their class names
+    are not stable, so this routine first tries native accessible controls, then the label's
+    nearby combobox/button, and finally visible comboboxes until the requested option appears.
     """
 
-    cache: Dict[int, List[dict]] = {}
-    force_browser = False
+    value_re = re.compile(rf"^\s*{re.escape(value)}\s*$", re.I)
 
-    def page_rows(page: int) -> List[dict]:
-        nonlocal force_browser
-        if page in cache:
-            return cache[page]
-        if force_browser and renderer is not None:
-            raw = renderer.get_html(RUNNER_SEARCH_URL, params={"page": page})
-            rows = extract_rank_rows(raw)
-        else:
-            raw = get_text(session, RUNNER_SEARCH_URL, params={"page": page})
-            rows = extract_rank_rows(raw)
-            # UTMB currently renders runner-search client-side. If the server HTML has too
-            # few rows, fall back to a real Chromium render.
-            if renderer is not None and len(rows) < 5:
-                raw = renderer.get_html(RUNNER_SEARCH_URL, params={"page": page})
-                rows = extract_rank_rows(raw)
-        cache[page] = rows
-        time.sleep(0.08 + random.random() * 0.06)
-        return rows
+    # 1) Native/select controls exposed through an accessible label.
+    try:
+        labelled = page.get_by_label(re.compile(rf"^{re.escape(label)}$", re.I))
+        for i in range(min(labelled.count(), 8)):
+            control = labelled.nth(i)
+            if not control.is_visible():
+                continue
+            tag = control.evaluate("el => el.tagName.toLowerCase()")
+            if tag == "select":
+                try:
+                    control.select_option(label=value)
+                    page.wait_for_timeout(400)
+                    return
+                except Exception:
+                    pass
+            try:
+                control.click()
+                option = _visible_locator(page.get_by_text(value_re, exact=False))
+                if option is not None:
+                    option.click()
+                    page.wait_for_timeout(500)
+                    return
+            except Exception:
+                pass
+    except Exception:
+        pass
 
-    first = page_rows(1)
-    second = page_rows(2)
-    if len(first) < 5 or len(second) < 5:
-        return {"status": "unavailable", "reason": "ranking_rows_not_detected"}
+    # 2) Any native select whose option list contains the desired value.
+    try:
+        selects = page.locator("select")
+        for i in range(min(selects.count(), 20)):
+            sel = selects.nth(i)
+            if not sel.is_visible():
+                continue
+            try:
+                options = sel.locator("option").all_inner_texts()
+            except Exception:
+                options = []
+            if any(str(x).strip().lower() == value.lower() for x in options):
+                sel.select_option(label=value)
+                page.wait_for_timeout(400)
+                return
+    except Exception:
+        pass
 
-    sig1 = tuple((r["id"], r["score"]) for r in first[:5])
-    sig2 = tuple((r["id"], r["score"]) for r in second[:5])
-    if sig1 == sig2 and renderer is not None:
-        # The raw HTML often ignores ?page= while the browser app respects it.
-        force_browser = True
-        cache.clear()
-        raw1 = renderer.get_html(RUNNER_SEARCH_URL, params={"page": 1})
-        raw2 = renderer.get_html(RUNNER_SEARCH_URL, params={"page": 2})
-        first = extract_rank_rows(raw1)
-        second = extract_rank_rows(raw2)
-        cache[1] = first
-        cache[2] = second
-        sig1 = tuple((r["id"], r["score"]) for r in first[:5])
-        sig2 = tuple((r["id"], r["score"]) for r in second[:5])
-    if sig1 == sig2:
-        return {"status": "unavailable", "reason": "pagination_not_observable_even_in_browser"}
+    # 3) Click a control near the visible label text.
+    try:
+        labels = page.get_by_text(re.compile(rf"^\s*{re.escape(label)}\s*$", re.I))
+        for i in range(min(labels.count(), 8)):
+            lab = labels.nth(i)
+            if not lab.is_visible():
+                continue
+            for levels in range(1, 6):
+                ancestor = lab.locator("xpath=" + "/.." * levels)
+                controls = ancestor.locator("[role='combobox'], select, input, button")
+                for j in range(min(controls.count(), 10)):
+                    control = controls.nth(j)
+                    if not control.is_visible():
+                        continue
+                    try:
+                        txt = (control.inner_text() or "").strip().lower()
+                    except Exception:
+                        txt = ""
+                    if txt == "search":
+                        continue
+                    try:
+                        control.click()
+                        page.wait_for_timeout(250)
+                        option = _visible_locator(page.get_by_text(value_re, exact=False))
+                        if option is not None:
+                            option.click()
+                            page.wait_for_timeout(500)
+                            return
+                    except Exception:
+                        pass
+    except Exception:
+        pass
 
-    page_size = int(round((len(first) + len(second)) / 2))
+    # 4) Last-resort discovery: open visible comboboxes one by one and look for the value.
+    candidates = page.locator("[role='combobox'], button")
+    for i in range(min(candidates.count(), 80)):
+        control = candidates.nth(i)
+        try:
+            if not control.is_visible():
+                continue
+            txt = (control.inner_text() or "").strip().lower()
+            if txt in {"search", "sign in", "my utmb"}:
+                continue
+            control.click()
+            page.wait_for_timeout(220)
+            option = _visible_locator(page.get_by_text(value_re, exact=False))
+            if option is not None:
+                option.click()
+                page.wait_for_timeout(500)
+                return
+            page.keyboard.press("Escape")
+        except Exception:
+            try:
+                page.keyboard.press("Escape")
+            except Exception:
+                pass
 
-    def page_min_score(page: int) -> Optional[int]:
-        rows = page_rows(page)
-        scores = [r["score"] for r in rows if isinstance(r.get("score"), int)]
-        return min(scores) if scores else None
+    raise RuntimeError(f"Could not set UTMB filter {label}={value}")
 
-    # Exponential search to find a page that reaches the user's score.
-    low_page = 1
-    high_page = 2
-    while high_page <= MAX_CUTOFF_PAGE:
-        mn = page_min_score(high_page)
-        if mn is None:
-            return {"status": "unavailable", "reason": f"score_parse_failed_page_{high_page}"}
-        if mn <= target_score:
-            break
-        low_page = high_page
-        high_page *= 2
-    else:
-        return {"status": "unavailable", "reason": "cutoff_not_found_within_cap"}
 
-    high_page = min(high_page, MAX_CUTOFF_PAGE)
-    # Binary search the first page whose minimum score is <= target.
-    lo, hi = low_page, high_page
-    while lo + 1 < hi:
-        mid = (lo + hi) // 2
-        mn = page_min_score(mid)
-        if mn is None:
-            return {"status": "unavailable", "reason": f"score_parse_failed_page_{mid}"}
-        if mn <= target_score:
-            hi = mid
-        else:
-            lo = mid
-    cutoff_page = hi
-    cutoff_rows = page_rows(cutoff_page)
-    greater_on_cutoff = sum(1 for r in cutoff_rows if r.get("score", 0) > target_score)
-    total_above = max(0, (cutoff_page - 1) * page_size + greater_on_cutoff)
+def _filtered_rank_rows(raw_html: str, age_group: Optional[str]) -> List[dict]:
+    """Return rows that belong to the South Korea / Men filtered ranking table.
 
-    pages = even_sample_pages(cutoff_page, RANK_SAMPLE_PAGES)
-    sampled_rows: List[dict] = []
-    for page in pages:
-        rows = page_rows(page)
-        for row in rows:
-            if page < cutoff_page or row.get("score", 0) > target_score:
-                sampled_rows.append(row)
+    The page also contains a separate global top-3 widget.  Filtering demographics here keeps
+    those global cards from changing the calculated page position.
+    """
+    rows = extract_rank_rows(raw_html)
+    out: List[dict] = []
+    for row in rows:
+        country = normalize_country(row.get("country"))
+        gender = normalize_gender(row.get("gender"))
+        age = str(row.get("age_group") or "").strip()
+        if country not in (None, "KR"):
+            continue
+        if gender not in (None, "Men"):
+            continue
+        if age_group and age and age != age_group:
+            continue
+        out.append(row)
 
-    if not sampled_rows:
-        return {"status": "unavailable", "reason": "empty_rank_sample"}
+    # If nationality metadata is present, require KR. This removes unrelated global top-3 cards.
+    if any(normalize_country(r.get("country")) == "KR" for r in out):
+        out = [r for r in out if normalize_country(r.get("country")) == "KR"]
+    return out
 
-    country_known = sum(1 for r in sampled_rows if r.get("country"))
-    known_ratio = country_known / len(sampled_rows)
-    if known_ratio < 0.70:
+
+def _click_next_rank_page(page, next_page_number: int, previous_signature: Tuple[Tuple[str, int], ...]) -> bool:
+    """Advance UTMB's client-side pagination by actually clicking its UI."""
+    # Prefer the explicit next page number. There may be another numeric element elsewhere,
+    # so try all visible exact matches and accept only a click that changes the ranking rows.
+    matches = page.get_by_text(re.compile(rf"^\s*{next_page_number}\s*$"))
+    for i in range(min(matches.count(), 12)):
+        item = matches.nth(i)
+        try:
+            if not item.is_visible():
+                continue
+            item.click()
+            try:
+                page.wait_for_load_state("networkidle", timeout=8_000)
+            except Exception:
+                pass
+            page.wait_for_timeout(700)
+            sig = tuple((str(r.get("id")), int(r.get("score", 0))) for r in extract_rank_rows(page.content())[:8])
+            if sig and sig != previous_signature:
+                return True
+        except Exception:
+            continue
+
+    # Fallback to accessible next buttons/icons.
+    for selector in [
+        "button[aria-label*='next' i]",
+        "a[aria-label*='next' i]",
+        "button[title*='next' i]",
+        "a[title*='next' i]",
+    ]:
+        loc = page.locator(selector)
+        for i in range(min(loc.count(), 6)):
+            item = loc.nth(i)
+            try:
+                if not item.is_visible() or item.is_disabled():
+                    continue
+                item.click()
+                try:
+                    page.wait_for_load_state("networkidle", timeout=8_000)
+                except Exception:
+                    pass
+                page.wait_for_timeout(700)
+                sig = tuple((str(r.get("id")), int(r.get("score", 0))) for r in extract_rank_rows(page.content())[:8])
+                if sig and sig != previous_signature:
+                    return True
+            except Exception:
+                continue
+    return False
+
+
+def _exact_filtered_rank(renderer: BrowserRenderer, target_score: int, age_group: Optional[str]) -> dict:
+    """Read exact position after applying UTMB's own South Korea/Men filters."""
+    page = renderer._page
+    log(
+        "opening filtered ranking: South Korea / Men"
+        + (f" / {age_group}" if age_group else "")
+    )
+    page.goto(RUNNER_SEARCH_URL, wait_until="domcontentloaded", timeout=60_000)
+    try:
+        page.wait_for_load_state("networkidle", timeout=15_000)
+    except Exception:
+        pass
+    page.wait_for_timeout(1_500)
+
+    # Expand the filters panel when UTMB collapses it on desktop/mobile layouts.
+    try:
+        filters_btn = _visible_locator(page.get_by_text(re.compile(r"^\s*Filters\s*$", re.I)))
+        if filters_btn is not None:
+            filters_btn.click()
+            page.wait_for_timeout(400)
+    except Exception:
+        pass
+
+    _choose_custom_filter(page, "Nationality", "South Korea")
+    _choose_custom_filter(page, "Gender", "Men")
+    if age_group:
+        _choose_custom_filter(page, "Age Group", age_group)
+
+    # UTMB exposes a Search button; filters may already trigger a refresh, but clicking it makes
+    # the intended state explicit and mirrors the user's working manual flow.
+    try:
+        search = _visible_locator(page.get_by_role("button", name=re.compile(r"^search$", re.I)))
+        if search is None:
+            search = _visible_locator(page.get_by_text(re.compile(r"^\s*search\s*$", re.I)))
+        if search is not None:
+            search.click()
+    except Exception:
+        pass
+    try:
+        page.wait_for_load_state("networkidle", timeout=15_000)
+    except Exception:
+        pass
+    page.wait_for_timeout(1_200)
+
+    target_runner = runner_id_from_url(PROFILE_URL)
+    page_num = 1
+    max_pages = 80
+    page_size: Optional[int] = None
+    scanned = 0
+
+    while page_num <= max_pages:
+        raw = page.content()
+        rows = _filtered_rank_rows(raw, age_group)
+        if not rows:
+            raise RuntimeError(
+                "UTMB filtered ranking rendered but no South Korea ranking rows were parsed "
+                f"(age_group={age_group or 'ALL'}, page={page_num})."
+            )
+        if page_size is None:
+            page_size = len(rows)
+
+        log(
+            f"filtered rank page {page_num}: rows={len(rows)} "
+            f"score_range={max(r['score'] for r in rows)}-{min(r['score'] for r in rows)}"
+        )
+
+        for idx, row in enumerate(rows):
+            rid = str(row.get("id") or "")
+            name = str(row.get("name") or "")
+            if target_runner in rid or re.search(r"\bJesun\s+RYU\b", name, flags=re.I):
+                exact_rank = scanned + idx + 1
+                return {
+                    "status": "exact_from_utmb_filtered_ranking",
+                    "rank": exact_rank,
+                    "page": page_num,
+                    "page_size": page_size,
+                    "matched_name": name,
+                    "matched_score": row.get("score"),
+                    "age_group_filter": age_group,
+                }
+
+        # Rankings are descending. Once the whole page is below the user's score, the target
+        # should already have appeared unless UTMB's filters/data changed; stop with a clear error.
+        min_score = min(int(r.get("score", 0)) for r in rows)
+        if min_score < target_score:
+            raise RuntimeError(
+                f"Passed target score {target_score} without finding runner {target_runner} "
+                f"in filtered ranking (page={page_num}, min_score={min_score})."
+            )
+
+        previous_signature = tuple((str(r.get("id")), int(r.get("score", 0))) for r in rows[:8])
+        scanned += len(rows)
+        if not _click_next_rank_page(page, page_num + 1, previous_signature):
+            raise RuntimeError(
+                f"Could not advance UTMB filtered ranking from page {page_num} to {page_num + 1}."
+            )
+        page_num += 1
+
+    raise RuntimeError(f"Runner not found in first {max_pages} filtered ranking pages")
+
+
+def estimate_korea_rank(session: requests.Session, target_score: int, age_group: str, renderer: Optional[BrowserRenderer] = None) -> dict:
+    """Get exact Korea male and M35-39 ranks using UTMB's own visible filters.
+
+    This intentionally mirrors the manual workflow that works on utmb.world:
+    Nationality=South Korea, Gender=Men, then (for the age rank) Age Group=35-39.
+    No statistical sampling is used.
+    """
+    if renderer is None:
+        return {"status": "unavailable", "reason": "browser_renderer_required_for_filtered_rank"}
+
+    try:
+        men = _exact_filtered_rank(renderer, target_score, None)
+        age = _exact_filtered_rank(renderer, target_score, age_group)
+        return {
+            "status": "exact_from_utmb_filtered_ranking",
+            "korea_men_rank_est": men["rank"],
+            "korea_men_rank_low": men["rank"],
+            "korea_men_rank_high": men["rank"],
+            "korea_age_rank_est": age["rank"],
+            "korea_age_rank_low": age["rank"],
+            "korea_age_rank_high": age["rank"],
+            "sample_rows": None,
+            "men_detail": men,
+            "age_detail": age,
+        }
+    except Exception as exc:
         return {
             "status": "unavailable",
-            "reason": "nationality_metadata_not_reliable",
-            "sample_rows": len(sampled_rows),
-            "country_known_ratio": round(known_ratio, 3),
-            "cutoff_page": cutoff_page,
+            "reason": f"filtered_rank_error: {type(exc).__name__}: {exc}",
         }
-
-    # Unknown countries are excluded from the denominator so missing flag metadata does not
-    # dilute Korea's proportion. This is still an estimate, which is why we keep a range.
-    known = [r for r in sampled_rows if r.get("country")]
-    korea_men = [r for r in known if r.get("country") == "KR" and normalize_gender(r.get("gender")) == "Men"]
-    korea_age = [r for r in korea_men if str(r.get("age_group") or "") == age_group]
-
-    def make_rank(success: int) -> Tuple[int, int, int]:
-        p = success / len(known)
-        low_p, high_p = wilson_interval(success, len(known))
-        est = 1 + int(round(p * total_above))
-        low = 1 + int(math.floor(low_p * total_above))
-        high = 1 + int(math.ceil(high_p * total_above))
-        return (max(1, est), max(1, low), max(1, high))
-
-    men_est, men_low, men_high = make_rank(len(korea_men))
-    age_est, age_low, age_high = make_rank(len(korea_age))
-
-    return {
-        "status": "estimated_from_public_ranking_sample",
-        "korea_men_rank_est": men_est,
-        "korea_men_rank_low": men_low,
-        "korea_men_rank_high": men_high,
-        "korea_age_rank_est": age_est,
-        "korea_age_rank_low": age_low,
-        "korea_age_rank_high": age_high,
-        "global_runners_above_score_est": total_above,
-        "cutoff_page": cutoff_page,
-        "page_size": page_size,
-        "sample_pages": len(pages),
-        "sample_rows": len(sampled_rows),
-        "country_known_ratio": round(known_ratio, 3),
-        "korea_men_hits": len(korea_men),
-        "korea_age_hits": len(korea_age),
-    }
-
 
 def runner_id_from_url(url: str) -> str:
     path = urlparse(url).path
@@ -742,9 +932,9 @@ def main() -> None:
     except Exception as exc:  # rank should never block the index snapshot itself
         rank = {"status": "unavailable", "reason": f"rank_estimation_error: {type(exc).__name__}: {exc}"}
 
-    if rank.get("status") == "estimated_from_public_ranking_sample":
+    if rank.get("status") in {"estimated_from_public_ranking_sample", "exact_from_utmb_filtered_ranking"}:
         log(
-            "Korea rank estimate: "
+            "Korea rank: "
             f"Men #{rank['korea_men_rank_est']} "
             f"({rank['korea_men_rank_low']}-{rank['korea_men_rank_high']}), "
             f"{profile.get('age_group')} #{rank['korea_age_rank_est']}"
