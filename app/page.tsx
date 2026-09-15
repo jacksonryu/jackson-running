@@ -256,11 +256,175 @@ function Icon({ name, className = "h-5 w-5" }: { name: string; className?: strin
   return <svg {...common}><circle cx="12" cy="12" r="9" /></svg>;
 }
 
-function Shell({ children }: { children: React.ReactNode }) {
+function Shell({ children, backdrop }: { children: React.ReactNode; backdrop?: React.ReactNode }) {
   return (
-    <main className="min-h-screen bg-[#050505] text-white">
-      <div className="mx-auto max-w-7xl px-4 pb-14 pt-5 sm:px-6 sm:pt-8">{children}</div>
+    <main className="relative min-h-screen overflow-x-hidden bg-[#020203] text-white">
+      {backdrop}
+      <div className="relative z-10 mx-auto max-w-7xl px-4 pb-14 pt-5 sm:px-6 sm:pt-8">{children}</div>
     </main>
+  );
+}
+
+type FootscanTheme = {
+  bgA: string;
+  bgB: string;
+  glowA: string;
+  glowB: string;
+  hue: number;
+  rotate: number;
+  x: number;
+  y: number;
+  scale: number;
+  seed: number;
+};
+
+const footscanThemes: Record<Tab, FootscanTheme> = {
+  overview: { bgA: "#02060b", bgB: "#13020c", glowA: "#063b4c", glowB: "#3a071c", hue: 0, rotate: -8, x: 66, y: 11, scale: 1.02, seed: 2 },
+  simple:   { bgA: "#05030c", bgB: "#071625", glowA: "#28134c", glowB: "#063a48", hue: 12, rotate: -3, x: 61, y: 15, scale: 1.05, seed: 5 },
+  quality:  { bgA: "#020806", bgB: "#111006", glowA: "#063a2c", glowB: "#4d2506", hue: -9, rotate: 5, x: 64, y: 13, scale: 1.08, seed: 7 },
+  peak:     { bgA: "#08030d", bgB: "#07101b", glowA: "#4b123c", glowB: "#082d45", hue: 19, rotate: 9, x: 59, y: 10, scale: 1.03, seed: 11 },
+  detail:   { bgA: "#090403", bgB: "#071019", glowA: "#482008", glowB: "#082b3d", hue: -14, rotate: -12, x: 68, y: 17, scale: 1.07, seed: 13 },
+  coach:    { bgA: "#040512", bgB: "#12040e", glowA: "#102f59", glowB: "#4c1036", hue: 7, rotate: 2, x: 62, y: 12, scale: 1.04, seed: 17 },
+};
+
+function FootscanBackdrop({ tab }: { tab: Tab }) {
+  const t = footscanThemes[tab];
+  return (
+    <div
+      aria-hidden="true"
+      className="pointer-events-none fixed inset-0 z-0 overflow-hidden transition-[background] duration-700 ease-out"
+      style={{
+        background: `radial-gradient(circle at 18% 12%, ${t.glowA} 0%, transparent 34%), radial-gradient(circle at 82% 76%, ${t.glowB} 0%, transparent 38%), linear-gradient(145deg, ${t.bgA} 0%, ${t.bgB} 100%)`,
+      }}
+    >
+      <div
+        className="absolute inset-0 opacity-[0.17] mix-blend-screen"
+        style={{
+          backgroundImage: "repeating-linear-gradient(0deg, rgba(255,255,255,.055) 0px, rgba(255,255,255,.055) 1px, transparent 1px, transparent 4px), repeating-linear-gradient(90deg, rgba(0,255,255,.025) 0px, rgba(0,255,255,.025) 1px, transparent 1px, transparent 7px)",
+        }}
+      />
+
+      <div
+        key={`foot-main-${tab}`}
+        className="absolute h-[76vh] w-[38vh] min-h-[520px] min-w-[260px] max-h-[880px] max-w-[440px] origin-center opacity-[0.46] mix-blend-screen sm:opacity-[0.54]"
+        style={{
+          left: `${t.x}%`,
+          top: `${t.y}%`,
+          transform: `translateX(-50%) rotate(${t.rotate}deg) scale(${t.scale})`,
+          filter: `hue-rotate(${t.hue}deg) saturate(1.35) contrast(1.18)`,
+          animation: "footscanSwap .72s cubic-bezier(.2,.8,.2,1) both, footscanDrift 9s ease-in-out .72s infinite alternate",
+        }}
+      >
+        <svg viewBox="0 0 320 700" className="h-full w-full overflow-visible" role="presentation">
+          <defs>
+            <radialGradient id="heatBall" cx="50%" cy="45%" r="60%">
+              <stop offset="0%" stopColor="#ff1111" />
+              <stop offset="28%" stopColor="#ff5b00" />
+              <stop offset="49%" stopColor="#ffe600" />
+              <stop offset="68%" stopColor="#3cff00" />
+              <stop offset="84%" stopColor="#00d8ff" />
+              <stop offset="100%" stopColor="#1636ff" stopOpacity=".2" />
+            </radialGradient>
+            <radialGradient id="heatHeel" cx="52%" cy="58%" r="60%">
+              <stop offset="0%" stopColor="#ff2a00" />
+              <stop offset="32%" stopColor="#ff8a00" />
+              <stop offset="54%" stopColor="#efff00" />
+              <stop offset="72%" stopColor="#15ef35" />
+              <stop offset="88%" stopColor="#00c7ff" />
+              <stop offset="100%" stopColor="#103cff" stopOpacity=".18" />
+            </radialGradient>
+            <radialGradient id="heatToe" cx="50%" cy="52%" r="64%">
+              <stop offset="0%" stopColor="#ff2700" />
+              <stop offset="38%" stopColor="#ffcf00" />
+              <stop offset="68%" stopColor="#41ff00" />
+              <stop offset="100%" stopColor="#00a9ff" stopOpacity=".15" />
+            </radialGradient>
+            <linearGradient id="archHeat" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="#00dfff" stopOpacity=".72" />
+              <stop offset="28%" stopColor="#16ff54" stopOpacity=".62" />
+              <stop offset="56%" stopColor="#fff000" stopOpacity=".48" />
+              <stop offset="78%" stopColor="#00e1ff" stopOpacity=".42" />
+              <stop offset="100%" stopColor="#1538ff" stopOpacity=".18" />
+            </linearGradient>
+            <filter id="footRough" x="-30%" y="-30%" width="160%" height="160%">
+              <feTurbulence type="fractalNoise" baseFrequency="0.018 0.028" numOctaves="2" seed={t.seed} result="noise" />
+              <feDisplacementMap in="SourceGraphic" in2="noise" scale="10" xChannelSelector="R" yChannelSelector="G" />
+            </filter>
+            <filter id="heatSoft" x="-30%" y="-30%" width="160%" height="160%">
+              <feGaussianBlur stdDeviation="2.1" />
+            </filter>
+          </defs>
+
+          <g filter="url(#footRough)">
+            <ellipse cx="154" cy="575" rx="78" ry="104" fill="url(#heatHeel)" />
+            <path d="M104 520 C92 475 91 432 103 385 C112 350 116 318 108 289 C101 265 113 241 139 230 C166 219 194 229 205 255 C217 285 216 320 207 350 C197 385 199 423 211 458 C221 490 208 523 181 544 C157 561 120 552 104 520Z" fill="url(#archHeat)" opacity=".84" />
+            <ellipse cx="156" cy="250" rx="116" ry="96" fill="url(#heatBall)" />
+            <ellipse cx="78" cy="150" rx="31" ry="38" fill="url(#heatToe)" />
+            <ellipse cx="114" cy="115" rx="34" ry="42" fill="url(#heatToe)" />
+            <ellipse cx="158" cy="94" rx="38" ry="46" fill="url(#heatToe)" />
+            <ellipse cx="207" cy="101" rx="39" ry="48" fill="url(#heatToe)" />
+            <ellipse cx="258" cy="139" rx="47" ry="58" fill="url(#heatToe)" />
+          </g>
+
+          <g opacity=".32" filter="url(#heatSoft)">
+            <ellipse cx="154" cy="244" rx="77" ry="55" fill="#ff1600" />
+            <ellipse cx="156" cy="585" rx="48" ry="58" fill="#ff2500" />
+            <ellipse cx="257" cy="138" rx="26" ry="33" fill="#ff1a00" />
+          </g>
+
+          <path d="M91 158 C53 207 39 279 70 340 C88 376 82 430 82 478 C82 558 106 651 157 674 C204 660 231 585 224 511 C221 466 221 420 239 374 C260 321 277 259 245 198" fill="none" stroke="rgba(83,243,255,.34)" strokeWidth="2" strokeDasharray="4 10" />
+        </svg>
+      </div>
+
+      <div
+        key={`foot-ghost-${tab}`}
+        className="absolute -left-[8vh] top-[58vh] h-[42vh] w-[21vh] min-h-[300px] min-w-[150px] opacity-[0.13] mix-blend-screen"
+        style={{
+          transform: `rotate(${t.rotate + 16}deg) scaleX(-1)`,
+          filter: `hue-rotate(${t.hue + 26}deg) saturate(1.35)`,
+          animation: "footscanGhost 11s ease-in-out infinite alternate",
+        }}
+      >
+        <svg viewBox="0 0 320 700" className="h-full w-full">
+          <ellipse cx="154" cy="575" rx="78" ry="104" fill="#00d9ff" />
+          <path d="M104 520 C92 475 91 432 103 385 C112 350 116 318 108 289 C101 265 113 241 139 230 C166 219 194 229 205 255 C217 285 216 320 207 350 C197 385 199 423 211 458 C221 490 208 523 181 544 C157 561 120 552 104 520Z" fill="#16ff54" opacity=".72" />
+          <ellipse cx="156" cy="250" rx="116" ry="96" fill="#ffed00" />
+          <ellipse cx="78" cy="150" rx="31" ry="38" fill="#00d9ff" />
+          <ellipse cx="114" cy="115" rx="34" ry="42" fill="#38ff00" />
+          <ellipse cx="158" cy="94" rx="38" ry="46" fill="#ffea00" />
+          <ellipse cx="207" cy="101" rx="39" ry="48" fill="#ff7b00" />
+          <ellipse cx="258" cy="139" rx="47" ry="58" fill="#ff2500" />
+        </svg>
+      </div>
+
+      <svg className="absolute inset-0 h-full w-full opacity-[0.095] mix-blend-overlay" role="presentation">
+        <filter id="screenNoise">
+          <feTurbulence type="fractalNoise" baseFrequency="0.78" numOctaves="1" seed={t.seed + 31} />
+          <feColorMatrix type="saturate" values="0" />
+        </filter>
+        <rect width="100%" height="100%" filter="url(#screenNoise)" opacity=".55" />
+      </svg>
+
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,.08)_58%,rgba(0,0,0,.58)_100%)]" />
+
+      <style jsx>{`
+        @keyframes footscanSwap {
+          0% { opacity: .12; transform: translateX(-50%) translate3d(9vw, 2vh, 0) rotate(${t.rotate - 5}deg) scale(${t.scale * 0.94}); filter: hue-rotate(${t.hue - 10}deg) saturate(1.1) contrast(1.05); }
+          100% { opacity: .46; transform: translateX(-50%) translate3d(0, 0, 0) rotate(${t.rotate}deg) scale(${t.scale}); filter: hue-rotate(${t.hue}deg) saturate(1.35) contrast(1.18); }
+        }
+        @keyframes footscanDrift {
+          0% { margin-top: 0; margin-left: 0; }
+          100% { margin-top: 1.2vh; margin-left: -1.1vw; }
+        }
+        @keyframes footscanGhost {
+          0% { margin-top: 0; opacity: .08; }
+          100% { margin-top: -2vh; opacity: .16; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          div { animation-duration: .001ms !important; animation-iteration-count: 1 !important; }
+        }
+      `}</style>
+    </div>
   );
 }
 
@@ -1400,7 +1564,7 @@ export default function Home() {
   };
 
   return (
-    <Shell>
+    <Shell backdrop={<FootscanBackdrop tab={tab} />}>
       <header className="pb-2 sm:pb-3">
         <img
           src={JACKSON_HAND_TITLE}
