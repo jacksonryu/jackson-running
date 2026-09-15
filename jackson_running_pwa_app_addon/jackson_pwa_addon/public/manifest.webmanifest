@@ -1,0 +1,34 @@
+{
+  "name": "JACKSON RUNNING ENGINE",
+  "short_name": "JACKSON RUNNING",
+  "description": "Personal running analytics, training and coaching dashboard",
+  "id": "/jackson-running/",
+  "start_url": "/jackson-running/",
+  "scope": "/jackson-running/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "orientation": "portrait-primary",
+  "background_color": "#050505",
+  "theme_color": "#050505",
+  "categories": ["sports", "fitness", "health"],
+  "icons": [
+    {
+      "src": "/jackson-running/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/jackson-running/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/jackson-running/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
