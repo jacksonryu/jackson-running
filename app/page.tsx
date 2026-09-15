@@ -504,11 +504,18 @@ function QualitySessionCard({ session }: { session: QualitySession }) {
 
 
 type TrainingGroup = "special" | "group1" | "group2";
+type TrainingVenue = "track" | "treadmill";
+type TrainingDay = "tuesday" | "thursday";
 
 const trainingGroupLabels: Record<TrainingGroup, string> = {
   special: "특조",
   group1: "1조",
   group2: "2조",
+};
+
+const trainingVenueLabels: Record<TrainingVenue, string> = {
+  track: "TRACK",
+  treadmill: "TREADMILL",
 };
 
 type TrainingFormat = {
@@ -974,21 +981,76 @@ function eightWeekRotationIndex() {
   return Math.floor(utcDay / 7) % 8;
 }
 
-function TrainingFormatCard({ spec, tone = "neutral" }: { spec: TrainingFormat; tone?: Tone }) {
+function trainingSetCount(work: string) {
+  const match = work.match(/×\s*(\d+)/);
+  if (!match) return null;
+  const count = Number(match[1]);
+  return Number.isFinite(count) && count > 0 ? count : null;
+}
+
+function TrainingSetStrip({ work, accent = "bg-black" }: { work: string; accent?: string }) {
+  const count = trainingSetCount(work);
+  if (!count) return null;
+  const shown = Math.min(count, 12);
   return (
-    <div className={`rounded-2xl border p-4 ${toneClasses[tone].border} bg-black/30`}>
-      <div className="flex items-center justify-between gap-3">
-        <div className="text-xs font-semibold tracking-[0.16em] text-zinc-500">{spec.label}</div>
-        <div className="text-[11px] text-zinc-700">{spec.volume}</div>
+    <div className="mt-5">
+      <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-[0.18em] opacity-45">
+        <span>SET MAP</span><span>{count} SETS</span>
       </div>
-      <div className="mt-3 text-lg font-semibold leading-7 text-zinc-100">{spec.work}</div>
-      <div className="mt-3 grid gap-2 text-sm leading-6">
-        {spec.lap400 && <div className="grid grid-cols-[72px_1fr] gap-2"><span className="text-zinc-600">400m 기준</span><span className="font-medium text-zinc-200">{spec.lap400}</span></div>}
-        <div className="grid grid-cols-[72px_1fr] gap-2"><span className="text-zinc-600">목표</span><span className="text-zinc-300">{spec.pace}</span></div>
-        <div className="grid grid-cols-[72px_1fr] gap-2"><span className="text-zinc-600">회복</span><span className="text-zinc-300">{spec.recovery}</span></div>
+      <div className="mt-2 flex gap-1.5">
+        {Array.from({ length: shown }).map((_, i) => <span key={i} className={`h-2 min-w-0 flex-1 rounded-full ${accent}`} />)}
+        {count > shown && <span className="ml-1 text-xs font-black">+{count - shown}</span>}
       </div>
-      {spec.note && <div className="mt-3 border-t border-zinc-900 pt-3 text-xs leading-5 text-zinc-600">{spec.note}</div>}
     </div>
+  );
+}
+
+function TrainingInfographicCard({ spec, day, venue, status }: { spec: TrainingFormat; day: TrainingDay; venue: TrainingVenue; status: string }) {
+  const bg = day === "tuesday"
+    ? venue === "track" ? "bg-[#8EE8FF]" : "bg-[#C9C7FF]"
+    : venue === "track" ? "bg-[#FFB28F]" : "bg-[#FFE348]";
+  const dayLabel = day === "tuesday" ? "TUESDAY QUALITY" : "THURSDAY HILL";
+  const venueLabel = venue === "track" ? (day === "tuesday" ? "TRACK" : "OUTDOOR HILL") : "TREADMILL";
+
+  return (
+    <article className={`relative overflow-hidden rounded-[30px] border border-black/10 p-5 text-black sm:p-7 ${bg}`}>
+      <div className="pointer-events-none absolute -right-16 -top-16 h-44 w-44 rounded-full bg-white/30 blur-3xl" />
+      <div className="relative">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="text-[10px] font-black uppercase tracking-[0.22em] opacity-45">{dayLabel} · {venueLabel}</div>
+            <div className="mt-2 text-3xl font-black leading-[1.02] tracking-[-0.05em] sm:text-4xl">{spec.work}</div>
+          </div>
+          <span className="shrink-0 rounded-full bg-black px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-white">{status}</span>
+        </div>
+
+        <TrainingSetStrip work={spec.work} />
+
+        <div className="mt-5 rounded-[22px] bg-black p-4 text-white sm:p-5">
+          <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/45">TARGET PACE / SPEED</div>
+          <div className="mt-2 text-lg font-black leading-7 tracking-[-0.02em] sm:text-xl">{spec.pace}</div>
+        </div>
+
+        <div className="mt-3 grid gap-3 sm:grid-cols-3">
+          {spec.lap400 && (
+            <div className="rounded-[20px] bg-white/75 p-4">
+              <div className="text-[10px] font-black uppercase tracking-[0.16em] opacity-40">400M LAP</div>
+              <div className="mt-2 text-base font-black leading-6">{spec.lap400}</div>
+            </div>
+          )}
+          <div className="rounded-[20px] bg-white/75 p-4">
+            <div className="text-[10px] font-black uppercase tracking-[0.16em] opacity-40">RECOVERY</div>
+            <div className="mt-2 text-base font-black leading-6">{spec.recovery}</div>
+          </div>
+          <div className="rounded-[20px] bg-white/75 p-4">
+            <div className="text-[10px] font-black uppercase tracking-[0.16em] opacity-40">VOLUME</div>
+            <div className="mt-2 text-base font-black leading-6">{spec.volume}</div>
+          </div>
+        </div>
+
+        {spec.note && <div className="mt-4 border-t border-black/15 pt-4 text-xs font-semibold leading-5 opacity-55">{spec.note}</div>}
+      </div>
+    </article>
   );
 }
 
@@ -1117,6 +1179,8 @@ export default function Home() {
   const [tab, setTab] = useState<Tab>("overview");
   const [raceMode, setRaceMode] = useState<RaceMode>("overall");
   const [trainingGroup, setTrainingGroup] = useState<TrainingGroup>("special");
+  const [trainingVenue, setTrainingVenue] = useState<TrainingVenue>("track");
+  const [trainingDay, setTrainingDay] = useState<TrainingDay>("tuesday");
   const [peakRows, setPeakRows] = useState<PeakHistoryRow[]>([]);
   const [peakLoading, setPeakLoading] = useState(false);
   const [utmb, setUtmb] = useState<UtmbSnapshot | null>(null);
@@ -1472,16 +1536,6 @@ export default function Home() {
 
 
       {tab === "quality" && (() => {
-        const latestPeak = peakRows.length ? peakRows[peakRows.length - 1] : null;
-        const speedScore = safeNumber(latestPeak?.speed_score);
-        const climbScore = safeNumber(latestPeak?.climbing_score);
-        const hrvDev = safeNumber(r.hrv_deviation_pct);
-        const sleepHours = safeNumber(r.latest_sleep_hours);
-        const atl = safeNumber(r.latest_atl);
-        const ctl = safeNumber(r.latest_ctl);
-        const loadRatio = atl !== null && ctl !== null && ctl > 0 ? atl / ctl : null;
-        const hardStop = overallTone === "warn" || (hrvDev !== null && hrvDev <= -10) || (sleepHours !== null && sleepHours < 6) || (loadRatio !== null && loadRatio > 1.35);
-        const cautious = !hardStop && ((hrvDev !== null && hrvDev < -4) || (loadRatio !== null && loadRatio > 1.15));
         const currentWeekIndex = eightWeekRotationIndex();
         const plan = detailedTrainingCycle[currentWeekIndex];
         const tuesdayVariant = plan.tuesdayGroups[trainingGroup];
@@ -1501,93 +1555,106 @@ export default function Home() {
           trail50: "목요일 업힐을 핵심으로 유지하고 화요일 세트는 80–90%로 줄여도 됨.",
           trail100: "화요일은 70–80% 볼륨, 목요일도 RPE 8을 넘기지 않고 주말 롱런 여유 확보.",
         };
+        const selectedSpec = trainingDay === "tuesday"
+          ? tuesdayVariant[trainingVenue]
+          : trainingVenue === "track" ? plan.thursdayOutdoor : plan.thursdayTreadmill;
+        const selectedTone = trainingDay === "tuesday" ? tueTone : thuTone;
+        const selectedStatus = hardStop ? "HOLD" : cautious ? "REDUCE" : "GO";
+        const selectedTitle = trainingDay === "tuesday" ? plan.tuesdayTitle : plan.thursdayTitle;
+        const selectedDate = trainingDay === "tuesday" ? nextWeekdayLabel(2) : nextWeekdayLabel(4);
 
         return (
           <div className="mt-5 space-y-4 sm:mt-7 sm:space-y-5">
-            <section className="relative overflow-hidden rounded-[28px] border border-black/10 bg-[#C9C7FF] p-6 text-black sm:p-8">
-              <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-violet-400/10 blur-3xl" />
-              <div className="relative">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex items-center gap-2 text-xs uppercase tracking-[0.24em] text-zinc-500"><span className="h-2 w-2 rounded-full bg-violet-300" />8-Week Quality Cycle</div>
-                  <Pill tone={tueTone}>{executionLabel}</Pill>
-                </div>
-                <div className="mt-5 flex flex-wrap gap-2">
-                  {(Object.keys(raceModeLabels) as RaceMode[]).map((mode) => <button key={mode} onClick={() => setRaceMode(mode)} className={`rounded-full border px-3 py-2 text-xs font-semibold transition ${raceMode === mode ? "border-violet-500/70 bg-violet-950/70 text-violet-200" : "border-zinc-800 bg-black/30 text-zinc-500 hover:text-zinc-300"}`}>{raceModeLabels[mode]}</button>)}
-                </div>
-                <div className="mt-5 rounded-2xl border border-cyan-900/50 bg-cyan-950/10 p-4">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
+            <section className="rounded-[28px] border border-zinc-800 bg-zinc-950/75 p-4 sm:p-5">
+              <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-end">
+                <div className="min-w-0">
+                  <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-600">TRAINING CONTROL</div>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-3">
                     <div>
-                      <div className="text-xs uppercase tracking-[0.18em] text-cyan-500">훈련조 선택</div>
-                      <div className="mt-1 text-sm text-zinc-400">그날 상태나 동행 러너에 따라 바로 바꿔도 돼.</div>
+                      <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-600">DAY</div>
+                      <div className="grid grid-cols-2 gap-1 rounded-2xl bg-black p-1">
+                        <button onClick={() => setTrainingDay("tuesday")} className={`rounded-xl px-3 py-2.5 text-xs font-bold transition ${trainingDay === "tuesday" ? "bg-[#8EE8FF] text-black" : "text-zinc-500"}`}>화요일 평지</button>
+                        <button onClick={() => setTrainingDay("thursday")} className={`rounded-xl px-3 py-2.5 text-xs font-bold transition ${trainingDay === "thursday" ? "bg-[#FFE348] text-black" : "text-zinc-500"}`}>목요일 업힐</button>
+                      </div>
                     </div>
-                    <div className="flex gap-2">
-                      {(Object.keys(trainingGroupLabels) as TrainingGroup[]).map((group) => (
-                        <button key={group} onClick={() => setTrainingGroup(group)} className={`min-w-[64px] rounded-full border px-4 py-2 text-sm font-semibold transition ${trainingGroup === group ? "border-cyan-400/70 bg-cyan-950/80 text-cyan-200" : "border-zinc-800 bg-black/30 text-zinc-500 hover:text-zinc-300"}`}>
-                          {trainingGroupLabels[group]}
-                        </button>
-                      ))}
+                    <div>
+                      <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-600">GROUP</div>
+                      <div className="grid grid-cols-3 gap-1 rounded-2xl bg-black p-1">
+                        {(Object.keys(trainingGroupLabels) as TrainingGroup[]).map((group) => (
+                          <button key={group} onClick={() => setTrainingGroup(group)} className={`rounded-xl px-2 py-2.5 text-xs font-bold transition ${trainingGroup === group ? "bg-white text-black" : "text-zinc-500"}`}>{trainingGroupLabels[group]}</button>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-600">VENUE</div>
+                      <div className="grid grid-cols-2 gap-1 rounded-2xl bg-black p-1">
+                        {(Object.keys(trainingVenueLabels) as TrainingVenue[]).map((venue) => (
+                          <button key={venue} onClick={() => setTrainingVenue(venue)} className={`rounded-xl px-3 py-2.5 text-xs font-bold transition ${trainingVenue === venue ? "bg-[#C9C7FF] text-black" : "text-zinc-500"}`}>{trainingVenueLabels[venue]}</button>
+                        ))}
+                      </div>
                     </div>
                   </div>
-                  <div className="mt-3 text-xs leading-5 text-zinc-600">현재 선택 · <span className="font-semibold text-cyan-300">{trainingGroupLabels[trainingGroup]}</span> · NSM 주간은 개인 기준 공통, 나머지 표 기반 세션은 선택한 조가 적용돼.</div>
                 </div>
-                <div className="mt-5 rounded-2xl border border-zinc-800 bg-black/25 p-4 text-sm leading-6 text-zinc-400"><span className="font-semibold text-zinc-200">{raceModeLabels[raceMode]} 보정 · </span>{modeModifier[raceMode]}</div>
+                <div className="flex items-center gap-2 lg:justify-end">
+                  <span className={`rounded-full border px-3 py-1.5 text-xs font-bold ${toneClasses[selectedTone].badge}`}>{executionLabel}</span>
+                </div>
               </div>
+              {trainingDay === "thursday" && <div className="mt-3 text-[11px] leading-5 text-zinc-600">목요일 업힐은 조별 페이스가 아니라 공통 세션이므로 특조/1조/2조 선택은 화요일 세션에만 반영돼.</div>}
             </section>
 
-            <section className="rounded-[30px] border border-zinc-800 bg-zinc-950/70 p-5 sm:p-7">
-              <div className="flex flex-wrap items-start justify-between gap-4">
+            <section className="rounded-[30px] border border-zinc-800 bg-zinc-950/70 p-4 sm:p-6">
+              <div className="flex flex-wrap items-end justify-between gap-4">
                 <div>
-                  <div className="text-xs uppercase tracking-[0.2em] text-violet-300">WEEK {plan.week} · {plan.focus} · {trainingGroupLabels[trainingGroup]}</div>
-                  <h3 className="mt-2 text-2xl font-semibold">이번 주 상세 스케줄</h3>
-                  <p className="mt-2 text-sm leading-6 text-zinc-500">{executionText}</p>
+                  <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-600">WEEK {plan.week} · {plan.focus}</div>
+                  <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">{selectedDate} · {selectedTitle}</h3>
+                  <div className="mt-2 text-sm leading-6 text-zinc-500">{executionText}</div>
                 </div>
-                <div className="text-right text-xs leading-5 text-zinc-600">스피드 Peak {speedScore === null ? "—" : `${n(speedScore,0)}%`}<br />오르막 Peak {climbScore === null ? "—" : `${n(climbScore,0)}%`}</div>
+                <div className="text-right text-[11px] leading-5 text-zinc-600">{trainingGroupLabels[trainingGroup]} · {trainingVenueLabels[trainingVenue]}<br />{raceModeLabels[raceMode]}</div>
               </div>
 
-              <div className="mt-6 rounded-[26px] border border-cyan-900/40 bg-cyan-950/10 p-4 sm:p-5">
-                <div className="flex items-start justify-between gap-4">
-                  <div><div className="text-xs uppercase tracking-[0.18em] text-cyan-400">{nextWeekdayLabel(2)} · TUESDAY</div><h4 className="mt-1 text-xl font-semibold">{plan.tuesdayTitle}</h4></div>
-                  <Pill tone={tueTone}>{hardStop ? "HOLD" : cautious ? "세트 감량" : "GO"}</Pill>
-                </div>
-                <div className="mt-4 grid gap-3 lg:grid-cols-2">
-                  <TrainingFormatCard spec={tuesdayVariant.track} tone={tueTone} />
-                  <TrainingFormatCard spec={tuesdayVariant.treadmill} tone={tueTone} />
-                </div>
-                <div className="mt-4 grid gap-3 sm:grid-cols-3 text-sm leading-6">
-                  <div className="rounded-2xl bg-black/30 p-4"><div className="text-xs text-zinc-600">워밍업</div><div className="mt-1 text-zinc-300">15–20분 easy + 러닝드릴 + 20초 스트라이드 4회</div></div>
-                  <div className="rounded-2xl bg-black/30 p-4"><div className="text-xs text-zinc-600">종료 기준</div><div className="mt-1 text-zinc-300">폼 붕괴 · 목표 대비 3% 이상 저하 · 비정상 어지럼이면 즉시 종료</div></div>
-                  <div className="rounded-2xl bg-black/30 p-4"><div className="text-xs text-zinc-600">쿨다운</div><div className="mt-1 text-zinc-300">10–15분 easy. 다음날은 완전 easy 또는 휴식</div></div>
-                </div>
+              <div className="mt-5">
+                <TrainingInfographicCard spec={selectedSpec} day={trainingDay} venue={trainingVenue} status={selectedStatus} />
               </div>
 
-              <div className="mt-4 rounded-[26px] border border-amber-900/40 bg-amber-950/10 p-4 sm:p-5">
-                <div className="flex items-start justify-between gap-4">
-                  <div><div className="text-xs uppercase tracking-[0.18em] text-amber-400">{nextWeekdayLabel(4)} · THURSDAY</div><h4 className="mt-1 text-xl font-semibold">{plan.thursdayTitle}</h4></div>
-                  <Pill tone={thuTone}>{hardStop ? "HOLD" : cautious ? "조건부" : "GO"}</Pill>
-                </div>
-                <div className="mt-4 grid gap-3 lg:grid-cols-2">
-                  <TrainingFormatCard spec={plan.thursdayOutdoor} tone={thuTone} />
-                  <TrainingFormatCard spec={plan.thursdayTreadmill} tone={thuTone} />
-                </div>
-                <div className="mt-4 rounded-2xl bg-black/30 p-4 text-sm leading-6 text-zinc-400"><span className="font-semibold text-zinc-200">목요일 원칙 · </span>화요일 이후 48시간 회복이 밀리면 세트 수를 줄이거나 생략. 목요일을 금요일/주말로 미뤄서 억지로 채우지 않는다.</div>
+              <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                <div className="rounded-[22px] border border-zinc-800 bg-black/35 p-4"><div className="text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-600">WARM UP</div><div className="mt-2 text-sm font-semibold leading-6 text-zinc-300">15–20분 easy + 러닝드릴 + 20초 스트라이드 4회</div></div>
+                <div className="rounded-[22px] border border-zinc-800 bg-black/35 p-4"><div className="text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-600">STOP SIGNAL</div><div className="mt-2 text-sm font-semibold leading-6 text-zinc-300">폼 붕괴 · 목표 대비 3% 이상 저하 · 비정상 어지럼이면 즉시 종료</div></div>
+                <div className="rounded-[22px] border border-zinc-800 bg-black/35 p-4"><div className="text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-600">COOL DOWN</div><div className="mt-2 text-sm font-semibold leading-6 text-zinc-300">10–15분 easy. 다음날은 완전 easy 또는 휴식</div></div>
               </div>
 
-              <div className="mt-4 rounded-2xl border border-zinc-800 bg-black/20 p-4 text-sm leading-6 text-zinc-500"><span className="font-semibold text-zinc-300">이번 주 부하 메모 · </span>{plan.loadNote}</div>
+              <div className="mt-4 rounded-[22px] border border-zinc-800 bg-black/25 p-4 text-sm leading-6 text-zinc-500"><span className="font-semibold text-zinc-300">{raceModeLabels[raceMode]} 보정 · </span>{modeModifier[raceMode]}</div>
             </section>
 
             <section className="rounded-[28px] border border-zinc-800 bg-zinc-950/70 p-5 sm:p-6">
-              <div className="flex items-center justify-between gap-4"><div><div className="text-sm text-zinc-500">8주 전체 보기 · {trainingGroupLabels[trainingGroup]}</div><h3 className="mt-1 text-xl font-semibold">인터벌 표 + NSM 로테이션</h3></div><Icon name="clock" className="h-5 w-5 text-zinc-600" /></div>
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div><div className="text-sm text-zinc-500">8주 전체 보기</div><h3 className="mt-1 text-xl font-semibold">{trainingGroupLabels[trainingGroup]} · {trainingVenueLabels[trainingVenue]}</h3></div>
+                <div className="flex gap-1 rounded-2xl bg-black p-1">
+                  {(Object.keys(raceModeLabels) as RaceMode[]).map((mode) => <button key={mode} onClick={() => setRaceMode(mode)} className={`rounded-xl px-2.5 py-2 text-[10px] font-bold transition ${raceMode === mode ? "bg-white text-black" : "text-zinc-600"}`}>{raceModeLabels[mode]}</button>)}
+                </div>
+              </div>
               <div className="mt-5 grid gap-3 lg:grid-cols-2">
-                {detailedTrainingCycle.map((w, i) => (
-                  <div key={w.week} className={`rounded-2xl border p-4 ${i === currentWeekIndex ? "border-violet-600/60 bg-violet-950/20" : "border-zinc-900 bg-black/25"}`}>
-                    <div className="flex items-center justify-between gap-3"><div className="text-xs font-semibold tracking-[0.16em] text-zinc-500">WEEK {w.week}</div>{i === currentWeekIndex && <Pill tone="neutral">CURRENT</Pill>}</div>
-                    <div className="mt-2 font-semibold text-zinc-200">{w.focus}</div>
-                    <div className="mt-3 grid gap-2 text-sm leading-6">
-                      <div className="grid grid-cols-[34px_1fr] gap-2"><span className="text-cyan-400">화</span><span className="text-zinc-400">{w.tuesdayGroups[trainingGroup].track.work} · {w.tuesdayGroups[trainingGroup].track.lap400 ?? w.tuesdayGroups[trainingGroup].track.pace}</span></div>
-                      <div className="grid grid-cols-[34px_1fr] gap-2"><span className="text-amber-400">목</span><span className="text-zinc-400">{w.thursdayTreadmill.work} · {w.thursdayTreadmill.pace}</span></div>
+                {detailedTrainingCycle.map((w, i) => {
+                  const tue = w.tuesdayGroups[trainingGroup][trainingVenue];
+                  const thu = trainingVenue === "track" ? w.thursdayOutdoor : w.thursdayTreadmill;
+                  return (
+                    <div key={w.week} className={`rounded-[22px] border p-4 ${i === currentWeekIndex ? "border-violet-500/60 bg-violet-950/20" : "border-zinc-900 bg-black/25"}`}>
+                      <div className="flex items-center justify-between gap-3"><div className="text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-600">WEEK {w.week}</div>{i === currentWeekIndex && <span className="rounded-full bg-white px-2.5 py-1 text-[9px] font-black text-black">CURRENT</span>}</div>
+                      <div className="mt-2 font-bold text-zinc-200">{w.focus}</div>
+                      <div className="mt-4 grid gap-3">
+                        <button type="button" onClick={() => { setTrainingDay("tuesday"); }} className="rounded-2xl bg-cyan-950/20 p-3 text-left">
+                          <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-cyan-400">TUE</div>
+                          <div className="mt-1 text-sm font-semibold leading-6 text-zinc-300">{tue.work}</div>
+                          <div className="mt-1 text-xs leading-5 text-zinc-600">{tue.lap400 ?? tue.pace}</div>
+                        </button>
+                        <button type="button" onClick={() => { setTrainingDay("thursday"); }} className="rounded-2xl bg-amber-950/20 p-3 text-left">
+                          <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-amber-400">THU</div>
+                          <div className="mt-1 text-sm font-semibold leading-6 text-zinc-300">{thu.work}</div>
+                          <div className="mt-1 text-xs leading-5 text-zinc-600">{thu.pace}</div>
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </section>
 
@@ -1601,11 +1668,9 @@ export default function Home() {
               </div>
               <div className="mt-4 text-xs leading-5 text-zinc-600">현재: HRV {fmt(r.latest_hrv)} · HRV 편차 {fmt(r.hrv_deviation_pct, "%")} · 수면 {fmt(r.latest_sleep_hours)}h · ATL/CTL {n(r.latest_atl,1)}/{n(r.latest_ctl,1)}</div>
             </section>
-
           </div>
         );
       })()}
-
 
       {tab === "peak" && (() => {
         const latestPeak = peakRows.length ? peakRows[peakRows.length - 1] : null;
