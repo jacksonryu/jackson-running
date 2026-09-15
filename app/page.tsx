@@ -256,10 +256,276 @@ function Icon({ name, className = "h-5 w-5" }: { name: string; className?: strin
   return <svg {...common}><circle cx="12" cy="12" r="9" /></svg>;
 }
 
+
+type PressureMark = {
+  id: number;
+  x: number;
+  y: number;
+  size: number;
+  intensity: number;
+  rotation: number;
+  duration: number;
+};
+
+type ActivePressurePoint = {
+  x: number;
+  y: number;
+  startedAt: number;
+  updatedAt: number;
+  lastEmitAt: number;
+  lastEmitX: number;
+  lastEmitY: number;
+  force: number;
+};
+
+function TouchPressureOverlay() {
+  const [marks, setMarks] = useState<PressureMark[]>([]);
+  const activeTouches = useRef<Map<number, ActivePressurePoint>>(new Map());
+  const nextId = useRef(1);
+  const mouseDown = useRef(false);
+  const mousePoint = useRef<ActivePressurePoint | null>(null);
+
+  useEffect(() => {
+    const spawnMark = (x: number, y: number, intensity: number, speed = 0) => {
+      const clamped = Math.max(0.28, Math.min(1, intensity));
+      const speedFactor = Math.max(0, Math.min(1, speed / 1.2));
+      const id = nextId.current++;
+      const size = 78 + clamped * 118 + (1 - speedFactor) * 20;
+      const mark: PressureMark = {
+        id,
+        x,
+        y,
+        size,
+        intensity: clamped,
+        rotation: -10 + Math.random() * 20,
+        duration: 760 + Math.round((1 - speedFactor) * 420),
+      };
+
+      setMarks((prev) => [...prev.slice(-30), mark]);
+      window.setTimeout(() => {
+        setMarks((prev) => prev.filter((item) => item.id !== id));
+      }, mark.duration + 120);
+    };
+
+    const pressureFor = (point: ActivePressurePoint, now: number, rawForce: number, speed: number) => {
+      if (Number.isFinite(rawForce) && rawForce > 0.01) {
+        return Math.max(0.34, Math.min(1, rawForce));
+      }
+      const held = Math.min(1, (now - point.startedAt) / 950);
+      const slowBonus = 1 - Math.min(1, speed / 1.1);
+      return Math.min(1, 0.42 + held * 0.36 + slowBonus * 0.18);
+    };
+
+    const updateTouch = (touch: Touch, isStart = false) => {
+      const now = performance.now();
+      const prev = activeTouches.current.get(touch.identifier);
+      const force = typeof touch.force === "number" ? touch.force : 0;
+
+      if (!prev || isStart) {
+        const point: ActivePressurePoint = {
+          x: touch.clientX,
+          y: touch.clientY,
+          startedAt: now,
+          updatedAt: now,
+          lastEmitAt: now,
+          lastEmitX: touch.clientX,
+          lastEmitY: touch.clientY,
+          force,
+        };
+        activeTouches.current.set(touch.identifier, point);
+        spawnMark(touch.clientX, touch.clientY, force > 0.01 ? force : 0.5, 0);
+        return;
+      }
+
+      const dt = Math.max(16, now - prev.updatedAt);
+      const dx = touch.clientX - prev.x;
+      const dy = touch.clientY - prev.y;
+      const speed = Math.hypot(dx, dy) / dt;
+      const emitDistance = Math.hypot(touch.clientX - prev.lastEmitX, touch.clientY - prev.lastEmitY);
+      const shouldEmit = emitDistance >= 9 || now - prev.lastEmitAt >= 58;
+      const intensity = pressureFor(prev, now, force, speed);
+
+      prev.x = touch.clientX;
+      prev.y = touch.clientY;
+      prev.updatedAt = now;
+      prev.force = force;
+
+      if (shouldEmit) {
+        prev.lastEmitAt = now;
+        prev.lastEmitX = touch.clientX;
+        prev.lastEmitY = touch.clientY;
+        spawnMark(touch.clientX, touch.clientY, intensity, speed);
+      }
+    };
+
+    const onTouchStart = (event: TouchEvent) => {
+      Array.from(event.changedTouches).forEach((touch) => updateTouch(touch, true));
+    };
+    const onTouchMove = (event: TouchEvent) => {
+      Array.from(event.changedTouches).forEach((touch) => updateTouch(touch));
+    };
+    const onTouchEnd = (event: TouchEvent) => {
+      const now = performance.now();
+      Array.from(event.changedTouches).forEach((touch) => {
+        const point = activeTouches.current.get(touch.identifier);
+        if (point) {
+          const held = Math.min(1, (now - point.startedAt) / 900);
+          spawnMark(touch.clientX, touch.clientY, 0.48 + held * 0.42, 0);
+        }
+        activeTouches.current.delete(touch.identifier);
+      });
+    };
+
+    const onPointerDown = (event: PointerEvent) => {
+      if (event.pointerType !== "mouse" || event.button !== 0) return;
+      mouseDown.current = true;
+      const now = performance.now();
+      mousePoint.current = {
+        x: event.clientX,
+        y: event.clientY,
+        startedAt: now,
+        updatedAt: now,
+        lastEmitAt: now,
+        lastEmitX: event.clientX,
+        lastEmitY: event.clientY,
+        force: 0.5,
+      };
+      spawnMark(event.clientX, event.clientY, 0.5, 0);
+    };
+    const onPointerMove = (event: PointerEvent) => {
+      if (event.pointerType !== "mouse" || !mouseDown.current || !mousePoint.current) return;
+      const now = performance.now();
+      const point = mousePoint.current;
+      const dt = Math.max(16, now - point.updatedAt);
+      const dx = event.clientX - point.x;
+      const dy = event.clientY - point.y;
+      const speed = Math.hypot(dx, dy) / dt;
+      const emitDistance = Math.hypot(event.clientX - point.lastEmitX, event.clientY - point.lastEmitY);
+      const held = Math.min(1, (now - point.startedAt) / 950);
+      point.x = event.clientX;
+      point.y = event.clientY;
+      point.updatedAt = now;
+      if (emitDistance >= 10 || now - point.lastEmitAt >= 64) {
+        point.lastEmitAt = now;
+        point.lastEmitX = event.clientX;
+        point.lastEmitY = event.clientY;
+        spawnMark(event.clientX, event.clientY, Math.min(1, 0.44 + held * 0.38), speed);
+      }
+    };
+    const onPointerUp = (event: PointerEvent) => {
+      if (event.pointerType !== "mouse") return;
+      if (mouseDown.current) spawnMark(event.clientX, event.clientY, 0.62, 0);
+      mouseDown.current = false;
+      mousePoint.current = null;
+    };
+
+    const holdTimer = window.setInterval(() => {
+      const now = performance.now();
+      activeTouches.current.forEach((point) => {
+        if (now - point.lastEmitAt < 115) return;
+        const held = Math.min(1, (now - point.startedAt) / 1100);
+        const rawForce = point.force;
+        const intensity = rawForce > 0.01 ? Math.max(0.38, rawForce) : 0.5 + held * 0.45;
+        point.lastEmitAt = now;
+        point.lastEmitX = point.x;
+        point.lastEmitY = point.y;
+        spawnMark(point.x, point.y, intensity, 0);
+      });
+    }, 90);
+
+    window.addEventListener("touchstart", onTouchStart, { passive: true });
+    window.addEventListener("touchmove", onTouchMove, { passive: true });
+    window.addEventListener("touchend", onTouchEnd, { passive: true });
+    window.addEventListener("touchcancel", onTouchEnd, { passive: true });
+    window.addEventListener("pointerdown", onPointerDown, { passive: true });
+    window.addEventListener("pointermove", onPointerMove, { passive: true });
+    window.addEventListener("pointerup", onPointerUp, { passive: true });
+    window.addEventListener("pointercancel", onPointerUp, { passive: true });
+
+    return () => {
+      window.clearInterval(holdTimer);
+      window.removeEventListener("touchstart", onTouchStart);
+      window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("touchend", onTouchEnd);
+      window.removeEventListener("touchcancel", onTouchEnd);
+      window.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerUp);
+      window.removeEventListener("pointercancel", onPointerUp);
+    };
+  }, []);
+
+  return (
+    <div aria-hidden="true" className="pointer-events-none fixed inset-0 z-[60] overflow-hidden">
+      {marks.map((mark) => (
+        <div
+          key={mark.id}
+          className="absolute -translate-x-1/2 -translate-y-1/2 will-change-transform pressure-mark"
+          style={{
+            left: mark.x,
+            top: mark.y,
+            width: mark.size,
+            height: mark.size,
+            animationDuration: `${mark.duration}ms`,
+          }}
+        >
+          <div
+            className="absolute inset-0 rounded-full mix-blend-screen"
+            style={{
+              opacity: 0.35 + mark.intensity * 0.58,
+              transform: `rotate(${mark.rotation}deg)`,
+              background: "radial-gradient(circle at 48% 46%, rgba(255,0,0,1) 0 12%, rgba(255,35,0,.98) 18%, rgba(255,118,0,.92) 31%, rgba(255,235,0,.78) 45%, rgba(64,255,0,.45) 58%, rgba(0,210,255,.18) 68%, rgba(24,50,255,.04) 76%, transparent 82%)",
+              filter: `blur(${1.2 + (1 - mark.intensity) * 2}px) saturate(1.7) contrast(1.12)`,
+            }}
+          />
+          <div
+            className="absolute left-1/2 top-1/2 rounded-full mix-blend-screen"
+            style={{
+              width: `${26 + mark.intensity * 27}%`,
+              height: `${26 + mark.intensity * 27}%`,
+              transform: "translate(-50%, -50%)",
+              opacity: 0.3 + mark.intensity * 0.62,
+              background: "radial-gradient(circle, rgba(255,0,0,.98) 0%, rgba(255,32,0,.76) 46%, transparent 74%)",
+              filter: "blur(3px)",
+            }}
+          />
+          <div
+            className="absolute inset-[10%] rounded-[44%_56%_51%_49%/54%_44%_56%_46%] opacity-30 mix-blend-screen"
+            style={{
+              transform: `rotate(${-mark.rotation * 1.4}deg)`,
+              backgroundImage: "repeating-linear-gradient(118deg, transparent 0 4px, rgba(255,255,255,.22) 5px, transparent 6px 10px)",
+              maskImage: "radial-gradient(circle, #000 0 58%, transparent 76%)",
+              WebkitMaskImage: "radial-gradient(circle, #000 0 58%, transparent 76%)",
+            }}
+          />
+        </div>
+      ))}
+
+      <style jsx>{`
+        .pressure-mark {
+          animation-name: pressureBloom;
+          animation-timing-function: cubic-bezier(.18,.75,.22,1);
+          animation-fill-mode: forwards;
+        }
+        @keyframes pressureBloom {
+          0% { opacity: 0; transform: translate(-50%, -50%) scale(.42); }
+          12% { opacity: .95; transform: translate(-50%, -50%) scale(.82); }
+          42% { opacity: .82; transform: translate(-50%, -50%) scale(1.02); }
+          100% { opacity: 0; transform: translate(-50%, -50%) scale(1.48); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .pressure-mark { animation-duration: 240ms !important; }
+        }
+      `}</style>
+    </div>
+  );
+}
+
 function Shell({ children, backdrop }: { children: React.ReactNode; backdrop?: React.ReactNode }) {
   return (
     <main className="relative min-h-screen overflow-x-hidden bg-[#020203] text-white">
       {backdrop}
+      <TouchPressureOverlay />
       <div className="relative z-10 mx-auto max-w-7xl px-4 pb-14 pt-5 sm:px-6 sm:pt-8">{children}</div>
     </main>
   );
