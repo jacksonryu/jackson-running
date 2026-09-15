@@ -274,14 +274,19 @@ function Pill({ tone, children }: { tone: Tone; children: React.ReactNode }) {
 }
 
 function MiniMetric({ icon, label, value, detail, tone = "neutral" }: { icon: string; label: string; value: string; detail: string; tone?: Tone }) {
+  const palette = tone === "good"
+    ? "bg-[#8EF7A4] text-black border-black/10"
+    : tone === "warn"
+      ? "bg-[#FFE348] text-black border-black/10"
+      : "bg-[#C9C7FF] text-black border-black/10";
   return (
-    <div className="rounded-2xl border border-zinc-800/90 bg-zinc-950/80 p-4">
+    <div className={`rounded-[24px] border p-4 sm:p-5 ${palette}`}>
       <div className="flex items-center justify-between gap-3">
-        <span className="text-xs font-medium text-zinc-500">{label}</span>
-        <span className={`rounded-xl p-2 ${toneClasses[tone].bg} ${toneClasses[tone].text}`}><Icon name={icon} className="h-4 w-4" /></span>
+        <span className="text-[10px] font-semibold uppercase tracking-[0.18em] opacity-55">{label}</span>
+        <span className="rounded-full border border-black/15 bg-black/5 p-2"><Icon name={icon} className="h-4 w-4" /></span>
       </div>
-      <div className="mt-3 text-2xl font-semibold tracking-tight">{value}</div>
-      <div className="mt-1 text-xs leading-5 text-zinc-500">{detail}</div>
+      <div className="mt-4 text-3xl font-black tracking-[-0.04em]">{value}</div>
+      <div className="mt-2 text-xs font-medium leading-5 opacity-65">{detail}</div>
     </div>
   );
 }
@@ -298,37 +303,43 @@ function ProgressBar({ value, tone = "neutral" }: { value: number; tone?: Tone }
 function ComparisonRow({ label, current, baseline, unit, icon }: { label: string; current: number | null; baseline: number | null; unit: string; icon: string }) {
   const ratio = current !== null && baseline && baseline > 0 ? current / baseline : null;
   const pct = ratio !== null ? clamp(ratio * 50, 4, 100) : 0;
-  const tone: Tone = ratio === null ? "neutral" : ratio > 1.35 ? "warn" : ratio >= 0.8 ? "good" : "neutral";
+  const palette = label.includes("거리") ? "bg-[#E7FF43]" : label.includes("상승") ? "bg-[#8EE8FF]" : "bg-[#FFB28F]";
   return (
-    <div className="rounded-2xl border border-zinc-800 bg-zinc-950/80 p-4 sm:p-5">
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <span className="rounded-xl bg-zinc-900 p-2 text-zinc-400"><Icon name={icon} className="h-4 w-4" /></span>
-          <div>
-            <div className="text-sm font-medium">{label}</div>
-            <div className="mt-0.5 text-xs text-zinc-500">최근 7일 vs 최근 28일 주간 평균</div>
-          </div>
+    <div className={`rounded-[24px] border border-black/10 p-4 text-black sm:p-5 ${palette}`}>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] opacity-50">{label}</div>
+          <div className="mt-2 text-4xl font-black tracking-[-0.05em]">{current === null ? "—" : `${n(current, current >= 100 ? 0 : 1)}${unit}`}</div>
         </div>
-        <div className="text-right">
-          <div className="text-lg font-semibold">{current === null ? "—" : `${n(current, current >= 100 ? 0 : 1)}${unit}`}</div>
-          <div className={`text-xs ${toneClasses[tone].text}`}>{ratio === null ? "비교 불가" : `${n(ratio * 100, 0)}%`}</div>
-        </div>
+        <span className="rounded-full border border-black/15 bg-black/5 p-2"><Icon name={icon} className="h-4 w-4" /></span>
       </div>
-      <div className="mt-4"><ProgressBar value={pct} tone={tone} /></div>
-      <div className="mt-2 text-xs text-zinc-600">주간 평균 {baseline === null ? "—" : `${n(baseline, baseline >= 100 ? 0 : 1)}${unit}`}</div>
+      <div className="mt-4 flex items-end justify-between gap-4">
+        <div className="text-xs font-medium opacity-55">28일 주간평균 {baseline === null ? "—" : `${n(baseline, baseline >= 100 ? 0 : 1)}${unit}`}</div>
+        <div className="text-lg font-black">{ratio === null ? "—" : `${n(ratio * 100, 0)}%`}</div>
+      </div>
+      <div className="mt-3 h-2 overflow-hidden rounded-full bg-black/10"><div className="h-full rounded-full bg-black/70" style={{ width: `${pct}%` }} /></div>
     </div>
   );
 }
 
 function StatCard({ label, value, sub, icon }: { label: string; value: string; sub?: string; icon?: string }) {
+  const palette = label.includes("HRV") || label.includes("Sleep")
+    ? "bg-[#C9C7FF]"
+    : label.includes("Elevation") || label.includes("오르막")
+      ? "bg-[#8EE8FF]"
+      : label.includes("Distance") || label.includes("효율") || label.includes("Easy")
+        ? "bg-[#E7FF43]"
+        : label.includes("interval") || label.includes("스피드")
+          ? "bg-[#FFB28F]"
+          : "bg-[#F4F1E8]";
   return (
-    <div className="rounded-2xl border border-zinc-800 bg-zinc-950/80 p-5">
+    <div className={`rounded-[24px] border border-black/10 p-5 text-black ${palette}`}>
       <div className="flex items-center justify-between gap-3">
-        <div className="text-sm text-zinc-500">{label}</div>
-        {icon && <span className="text-zinc-600"><Icon name={icon} className="h-4 w-4" /></span>}
+        <div className="text-[10px] font-semibold uppercase tracking-[0.18em] opacity-50">{label}</div>
+        {icon && <span className="rounded-full border border-black/15 bg-black/5 p-2"><Icon name={icon} className="h-4 w-4" /></span>}
       </div>
-      <div className="mt-2 text-3xl font-semibold tracking-tight">{value}</div>
-      {sub && <div className="mt-2 text-sm leading-6 text-zinc-500">{sub}</div>}
+      <div className="mt-4 text-3xl font-black tracking-[-0.05em]">{value}</div>
+      {sub && <div className="mt-3 text-xs font-medium leading-5 opacity-60">{sub}</div>}
     </div>
   );
 }
@@ -395,9 +406,9 @@ function ObjectRows({ obj }: { obj: JsonRecord }) {
 function WorkoutCard({ recommendation }: { recommendation: JsonRecord | null }) {
   if (!recommendation) {
     return (
-      <div className="rounded-[28px] border border-zinc-800 bg-zinc-950 p-6">
-        <div className="text-sm text-zinc-500">오늘 추천 훈련</div>
-        <div className="mt-3 text-xl font-semibold">코치 추천 데이터가 없습니다.</div>
+      <div className="rounded-[28px] border border-black/10 bg-[#FFE348] p-6 text-black">
+        <div className="text-[10px] font-semibold uppercase tracking-[0.18em] opacity-50">오늘 추천 훈련</div>
+        <div className="mt-3 text-2xl font-black">코치 추천 데이터가 없습니다.</div>
       </div>
     );
   }
@@ -409,24 +420,21 @@ function WorkoutCard({ recommendation }: { recommendation: JsonRecord | null }) 
   const reasoning = recommendation.reasoning ?? recommendation.reason ?? "회복과 최근 훈련 부하를 반영한 추천입니다.";
 
   return (
-    <div className="relative overflow-hidden rounded-[28px] border border-cyan-900/40 bg-gradient-to-br from-cyan-950/40 via-zinc-950 to-zinc-950 p-6 sm:p-7">
-      <div className="absolute -right-12 -top-12 h-40 w-40 rounded-full bg-cyan-400/10 blur-3xl" />
+    <div className="relative overflow-hidden rounded-[28px] border border-black/10 bg-[#FFE348] p-6 text-black sm:p-7">
+      <div className="absolute -right-10 -top-10 h-36 w-36 rounded-full bg-white/35 blur-2xl" />
       <div className="relative">
         <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2 text-sm font-medium text-cyan-300"><Icon name="target" className="h-4 w-4" />오늘 추천 훈련</div>
-          <span className="rounded-full border border-cyan-800/70 bg-cyan-950/70 px-3 py-1 text-xs text-cyan-300">AI COACH</span>
+          <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.18em] opacity-55"><Icon name="target" className="h-4 w-4" />오늘 추천 훈련</div>
+          <span className="rounded-full border border-black/15 bg-black/5 px-3 py-1 text-[10px] font-bold">AI COACH</span>
         </div>
-        <h2 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">{String(type)}</h2>
-        <div className="mt-5 grid grid-cols-3 gap-2 sm:max-w-lg sm:gap-3">
-          <div className="rounded-2xl bg-black/40 p-3"><div className="text-[11px] text-zinc-500">거리</div><div className="mt-1 text-lg font-semibold">{distance === null ? "—" : `${n(distance, 1)}km`}</div></div>
-          <div className="rounded-2xl bg-black/40 p-3"><div className="text-[11px] text-zinc-500">시간</div><div className="mt-1 text-lg font-semibold">{duration === null ? "—" : `${n(duration, 0)}분`}</div></div>
-          <div className="rounded-2xl bg-black/40 p-3"><div className="text-[11px] text-zinc-500">RPE</div><div className="mt-1 text-lg font-semibold">{rpe === null ? "—" : n(rpe, 0)}</div></div>
+        <h2 className="mt-4 text-4xl font-black tracking-[-0.06em] sm:text-5xl">{String(type)}</h2>
+        <div className="mt-5 grid grid-cols-3 gap-2">
+          <div className="rounded-2xl bg-black p-3 text-white"><div className="text-[10px] text-zinc-500">거리</div><div className="mt-1 text-lg font-black">{distance === null ? "—" : `${n(distance, 1)}km`}</div></div>
+          <div className="rounded-2xl bg-black p-3 text-white"><div className="text-[10px] text-zinc-500">시간</div><div className="mt-1 text-lg font-black">{duration === null ? "—" : `${n(duration, 0)}분`}</div></div>
+          <div className="rounded-2xl bg-black p-3 text-white"><div className="text-[10px] text-zinc-500">RPE</div><div className="mt-1 text-lg font-black">{rpe === null ? "—" : n(rpe, 0)}</div></div>
         </div>
-        <div className="mt-5 rounded-2xl border border-zinc-800/80 bg-black/30 p-4">
-          <div className="text-xs font-medium text-zinc-500">강도 / 페이스</div>
-          <div className="mt-1 text-sm font-medium leading-6 text-zinc-200">{String(intensity)}</div>
-        </div>
-        <p className="mt-4 text-sm leading-7 text-zinc-400">{String(reasoning)}</p>
+        <div className="mt-4 rounded-2xl border border-black/10 bg-black/5 p-4"><div className="text-[10px] font-bold uppercase tracking-[0.15em] opacity-45">강도 / 페이스</div><div className="mt-2 text-sm font-bold leading-6">{String(intensity)}</div></div>
+        <p className="mt-4 text-sm font-medium leading-7 opacity-65">{String(reasoning)}</p>
       </div>
     </div>
   );
@@ -1095,6 +1103,11 @@ function RecentSessionsChart({ sessions }: { sessions: JsonRecord[] }) {
   );
 }
 
+function SectionBanner({ tag, title, caption, color = "lime" }: { tag: string; title: string; caption?: string; color?: "lime" | "yellow" | "blue" | "purple" | "coral" }) {
+  const cls = color === "yellow" ? "bg-[#FFE348]" : color === "blue" ? "bg-[#8EE8FF]" : color === "purple" ? "bg-[#C9C7FF]" : color === "coral" ? "bg-[#FFB28F]" : "bg-[#8EF7A4]";
+  return <div className={`rounded-[28px] border border-black/10 p-5 text-black sm:p-6 ${cls}`}><div className="text-[10px] font-bold uppercase tracking-[0.22em] opacity-50">{tag}</div><div className="mt-2 text-3xl font-black tracking-[-0.05em] sm:text-4xl">{title}</div>{caption && <div className="mt-3 max-w-2xl text-sm font-medium leading-6 opacity-60">{caption}</div>}</div>;
+}
+
 export default function Home() {
   const [report, setReport] = useState<ReportRow | null>(null);
   const [loading, setLoading] = useState(true);
@@ -1320,33 +1333,34 @@ export default function Home() {
 
   return (
     <Shell>
-      <header className="flex flex-col gap-5 border-b border-zinc-800/80 pb-5 sm:pb-6 md:flex-row md:items-end md:justify-between">
+      <header className="flex flex-col gap-5 pb-5 sm:pb-6 md:flex-row md:items-end md:justify-between">
         <div>
-          <div className="flex items-center gap-2 text-xs uppercase tracking-[0.28em] text-zinc-500"><span className="h-2 w-2 rounded-full bg-cyan-400 shadow-[0_0_14px_rgba(34,211,238,.7)]" />Running Intelligence</div>
-          <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">JACKSON RUNNING</h1>
+          <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.28em] text-zinc-500"><span className="h-2 w-2 rounded-full bg-[#E7FF43]" />Running Intelligence</div>
+          <h1 className="mt-2 text-3xl font-black tracking-[-0.05em] sm:text-4xl">JACKSON RUNNING</h1>
         </div>
         <div className="text-xs text-zinc-600">Updated {prettyDate(d.generated_at_local ?? d.generated_at ?? report.created_at)}</div>
       </header>
 
-      <nav className="sticky top-0 z-20 -mx-4 mt-4 border-b border-zinc-900 bg-[#050505]/90 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
-        <div className="mx-auto flex max-w-7xl gap-1 overflow-x-auto rounded-2xl bg-zinc-950 p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <nav className="sticky top-0 z-20 -mx-4 mt-2 bg-[#050505]/92 px-4 py-3 backdrop-blur-xl sm:-mx-6 sm:px-6">
+        <div className="mx-auto flex max-w-7xl gap-1.5 overflow-x-auto rounded-[20px] border border-zinc-900 bg-zinc-950 p-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {tabs.map((item) => (
-            <button key={item.id} onClick={() => setTab(item.id)} className={`shrink-0 rounded-xl px-4 py-2.5 text-sm font-medium transition sm:flex-1 ${tab === item.id ? "bg-zinc-800 text-white shadow-sm" : "text-zinc-500 hover:text-zinc-300"}`}>{item.label}</button>
+            <button key={item.id} onClick={() => setTab(item.id)} className={`shrink-0 rounded-[14px] px-4 py-2.5 text-sm font-bold transition sm:flex-1 ${tab === item.id ? "bg-[#E7FF43] text-black" : "text-zinc-500 hover:text-zinc-300"}`}>{item.label}</button>
           ))}
         </div>
       </nav>
 
       <div onTouchStart={onSwipeStart} onTouchEnd={onSwipeEnd} className="touch-pan-y">
       {tab === "overview" && (
-        <div className="mt-6 space-y-5 sm:mt-8">
+        <div className="mt-5 space-y-4 sm:mt-7 sm:space-y-5">
+          <SectionBanner tag="TODAY / LIVE" title="오늘 상태를 3초 안에." caption="숫자는 크게, 설명은 짧게. 아래로 내리면 상세 근거와 최근 흐름이 이어져." color="blue" />
           <RunnerMotion />
           <section className="grid gap-4 lg:grid-cols-[0.85fr_1.55fr]">
-            <div className={`relative overflow-hidden rounded-[30px] border p-6 sm:p-7 ${toneClasses[overallTone].border} ${toneClasses[overallTone].bg}`}>
+            <div className={`relative overflow-hidden rounded-[28px] border border-black/10 p-6 text-black sm:p-7 ${overallTone === "good" ? "bg-[#8EF7A4]" : overallTone === "warn" ? "bg-[#FFB28F]" : "bg-[#C9C7FF]"}`}>
               <div className="absolute -right-12 -top-12 h-40 w-40 rounded-full bg-white/5 blur-3xl" />
               <div className="relative flex items-center justify-between gap-6">
                 <div>
-                  <div className="text-sm text-zinc-500">오늘 몸 상태</div>
-                  <div className="mt-2 text-4xl font-bold tracking-tight sm:text-5xl">{overallLabel}</div>
+                  <div className="text-[10px] font-bold uppercase tracking-[0.18em] opacity-50">오늘 몸 상태</div>
+                  <div className="mt-2 text-5xl font-black tracking-[-0.06em] sm:text-6xl">{overallLabel}</div>
                   <div className="mt-3"><Pill tone={overallTone}>{overallTone === "good" ? "강한 훈련도 검토 가능" : overallTone === "warn" ? "회복 우선" : "무리 없이 진행"}</Pill></div>
                 </div>
                 <div className="relative grid h-28 w-28 shrink-0 place-items-center rounded-full" style={{ background: `conic-gradient(${overallTone === "good" ? "#34d399" : overallTone === "warn" ? "#f59e0b" : "#38bdf8"} ${ringValue * 3.6}deg, #27272a 0deg)` }}>
@@ -1361,14 +1375,14 @@ export default function Home() {
                     className="block w-full text-left"
                     aria-expanded={recoveryExpanded}
                   >
-                    <p className={`${recoveryExpanded ? "" : "line-clamp-4"} whitespace-pre-wrap break-words text-sm leading-7 text-zinc-400`}>
+                    <p className={`${recoveryExpanded ? "" : "line-clamp-4"} whitespace-pre-wrap break-words text-sm font-medium leading-7 opacity-65`}>
                       {String(recoveryText)}
                     </p>
                   </button>
                   <button
                     type="button"
                     onClick={() => setRecoveryExpanded((v) => !v)}
-                    className="mt-2 rounded-lg px-1 py-1 text-xs font-medium text-cyan-300 transition hover:text-cyan-200"
+                    className="mt-2 rounded-lg px-1 py-1 text-xs font-bold text-black/60 transition hover:text-black"
                     aria-expanded={recoveryExpanded}
                   >
                     {recoveryExpanded ? "접기 ▲" : "전체 보기 ▼"}
@@ -1401,13 +1415,14 @@ export default function Home() {
       )}
 
       {tab === "simple" && (
-        <div className="mt-6 space-y-5 sm:mt-8">
-          <section className="rounded-[30px] border border-zinc-800 bg-gradient-to-br from-zinc-900 to-zinc-950 p-6 sm:p-8">
-            <div className="flex items-center gap-2 text-sm font-medium text-zinc-400"><Icon name="spark" className="h-4 w-4 text-cyan-300" />오늘의 쉬운 요약</div>
+        <div className="mt-5 space-y-4 sm:mt-7 sm:space-y-5">
+          <SectionBanner tag="EASY MODE" title="숫자 몰라도 바로 판단." caption="회복·피로·수면을 쉬운 말로 번역한 페이지." color="yellow" />
+          <section className="rounded-[28px] border border-black/10 bg-[#F4F1E8] p-6 text-black sm:p-8">
+            <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] opacity-50"><Icon name="spark" className="h-4 w-4" />오늘의 쉬운 요약</div>
             <h2 className="mt-4 max-w-3xl text-3xl font-bold leading-tight tracking-tight sm:text-4xl">
               {overallTone === "good" ? "몸 상태는 좋다. 오늘 계획한 훈련을 해도 괜찮다." : overallTone === "warn" ? "오늘은 기록 욕심보다 회복이 먼저다." : "몸 상태는 무난하다. 예정된 훈련을 과하게만 하지 말자."}
             </h2>
-            <p className="mt-4 max-w-3xl text-sm leading-7 text-zinc-400">숫자를 몰라도 오늘 무엇을 할지 바로 판단할 수 있게 정리한 화면이야.</p>
+            <p className="mt-4 max-w-3xl text-sm font-medium leading-7 opacity-60">숫자를 몰라도 오늘 무엇을 할지 바로 판단할 수 있게 정리한 화면이야.</p>
           </section>
 
           <section className="grid gap-4 lg:grid-cols-[1fr_1fr]">
@@ -1484,17 +1499,18 @@ export default function Home() {
         };
 
         return (
-          <div className="mt-6 space-y-5 sm:mt-8">
+          <div className="mt-5 space-y-4 sm:mt-7 sm:space-y-5">
+            <SectionBanner tag="QUALITY / WEEKLY" title="화요일 평지, 목요일 업힐." caption="특조·1조·2조와 트랙·트레드밀 기준을 한 화면에서 같이 본다." color="purple" />
             <RunnerMotion compact label="QUALITY SESSION · TUE / THU" />
-            <section className="relative overflow-hidden rounded-[32px] border border-violet-900/40 bg-gradient-to-br from-violet-950/30 via-zinc-950 to-black p-6 sm:p-8">
+            <section className="relative overflow-hidden rounded-[28px] border border-black/10 bg-[#C9C7FF] p-6 text-black sm:p-8">
               <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-violet-400/10 blur-3xl" />
               <div className="relative">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="flex items-center gap-2 text-xs uppercase tracking-[0.24em] text-zinc-500"><span className="h-2 w-2 rounded-full bg-violet-300" />8-Week Quality Cycle</div>
                   <Pill tone={tueTone}>{executionLabel}</Pill>
                 </div>
-                <h2 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">화요일 평지 + 목요일 업힐, 수치까지 한 화면에.</h2>
-                <p className="mt-3 max-w-4xl text-sm leading-7 text-zinc-400">보낸 인터벌 표를 특조·1조·2조까지 모두 넣었어. 당일 컨디션이나 같이 뛰는 사람에 맞춰 조를 바꾸면 트랙 랩타임과 트레드밀 속도가 동시에 바뀌고, 모든 속도 옆에 km당 페이스를 같이 표시해.</p>
+                <h2 className="mt-4 text-3xl font-black tracking-[-0.05em] sm:text-4xl">화요일 평지 + 목요일 업힐, 수치까지 한 화면에.</h2>
+                <p className="mt-3 max-w-4xl text-sm font-medium leading-7 opacity-60">보낸 인터벌 표를 특조·1조·2조까지 모두 넣었어. 당일 컨디션이나 같이 뛰는 사람에 맞춰 조를 바꾸면 트랙 랩타임과 트레드밀 속도가 동시에 바뀌고, 모든 속도 옆에 km당 페이스를 같이 표시해.</p>
                 <div className="mt-5 flex flex-wrap gap-2">
                   {(Object.keys(raceModeLabels) as RaceMode[]).map((mode) => <button key={mode} onClick={() => setRaceMode(mode)} className={`rounded-full border px-3 py-2 text-xs font-semibold transition ${raceMode === mode ? "border-violet-500/70 bg-violet-950/70 text-violet-200" : "border-zinc-800 bg-black/30 text-zinc-500 hover:text-zinc-300"}`}>{raceModeLabels[mode]}</button>)}
                 </div>
@@ -1615,17 +1631,18 @@ export default function Home() {
         ];
 
         return (
-          <div className="mt-6 space-y-5 sm:mt-8">
-            <section className="relative overflow-hidden rounded-[32px] border border-cyan-900/40 bg-gradient-to-br from-cyan-950/30 via-zinc-950 to-black p-6 sm:p-8">
+          <div className="mt-5 space-y-4 sm:mt-7 sm:space-y-5">
+            <SectionBanner tag="PEAK / PROGRESS" title="지금이 역대 최고점의 몇 %?" caption="과거 최고 컨디션과 현재 상태를 종목별로 비교한다." color="lime" />
+            <section className="relative overflow-hidden rounded-[28px] border border-black/10 bg-[#E7FF43] p-6 text-black sm:p-8">
               <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-cyan-400/10 blur-3xl" />
               <div className="relative grid gap-8 lg:grid-cols-[1.05fr_.95fr] lg:items-center">
                 <div>
                   <div className="flex flex-wrap items-center gap-2 text-xs uppercase tracking-[0.24em] text-zinc-500"><span className="h-2 w-2 rounded-full bg-cyan-300" />Peak / Progress</div>
                   <div className="mt-5 flex items-end gap-3">
                     <div className="text-6xl font-bold tracking-[-0.06em] sm:text-7xl">{match === null ? "—" : n(match, 0)}</div>
-                    <div className="pb-2 text-lg text-zinc-500">% OF PEAK</div>
+                    <div className="pb-2 text-lg font-bold opacity-45">% OF PEAK</div>
                   </div>
-                  <p className="mt-4 max-w-xl text-sm leading-7 text-zinc-400">
+                  <p className="mt-4 max-w-xl text-sm font-medium leading-7 opacity-60">
                     {match === null ? "페이지는 준비됐어. Garmin 전체 이력 → Supabase 백필 → Peak Engine 계산이 끝나면 현재 몸 상태를 과거 최고점과 자동 비교해." : match >= 100 ? "현재가 기존 최고점을 넘어선 새로운 최고 상태야." : match >= 95 ? "역대 최고점에 거의 도달한 상태야. 레이스 특이 자극만 잘 맞추면 돼." : match >= 85 ? "좋은 빌드업 구간이지만 몇 축은 아직 이전 최고점 아래야." : "현재는 최고점 대비 빌드업 중이야. 부족한 축을 확인해서 올리는 단계야."}
                   </p>
                   <div className="mt-6 flex flex-wrap gap-2">
@@ -1746,7 +1763,8 @@ export default function Home() {
       })()}
 
       {tab === "detail" && (
-        <div className="mt-6 space-y-5 sm:mt-8">
+        <div className="mt-5 space-y-4 sm:mt-7 sm:space-y-5">
+          <SectionBanner tag="DEEP DATA" title="숫자를 끝까지 파는 화면." caption="HRV·수면·부하·거리·상승·효율·롱런·인터벌을 한곳에 모았다." color="coral" />
           <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard label="HRV" value={`${fmt(r.latest_hrv)} ms`} sub={`28d baseline ${fmt(r.hrv_baseline_28d)} ms · ${fmt(r.hrv_deviation_pct)}%`} icon="heart" />
             <StatCard label="Resting HR" value={`${fmt(r.latest_resting_hr)} bpm`} sub={`28d baseline ${fmt(r.resting_hr_baseline_28d)} bpm · ${fmt(r.resting_hr_deviation_pct)}%`} icon="heart" />
@@ -1769,10 +1787,13 @@ export default function Home() {
       )}
 
       {tab === "coach" && (
-        <section className="mt-6 rounded-[30px] border border-zinc-800 bg-zinc-950/80 p-5 sm:mt-8 sm:p-7">
+        <div className="mt-5 space-y-4 sm:mt-7 sm:space-y-5">
+        <SectionBanner tag="AI COACH" title="읽는 코치에서 묻는 코치로." caption="현재는 일일 리포트를 보여주고, 다음 단계에서 자주 묻는 질문 버튼과 자유 질문 입력을 붙이면 돼." color="blue" />
+        <section className="rounded-[28px] border border-zinc-800 bg-zinc-950/80 p-5 sm:p-7">
           <div className="flex items-center justify-between gap-4"><div><div className="text-sm text-zinc-500">AI Coach</div><h2 className="mt-1 text-2xl font-semibold">Claude Coach</h2></div><span className="rounded-full bg-emerald-950 px-3 py-1 text-xs text-emerald-300">live</span></div>
           {coachEntries.length ? <div className="mt-6 grid gap-4 xl:grid-cols-2">{coachEntries.map(([key, value]) => <article key={key} className="rounded-2xl border border-zinc-800 bg-black p-5"><h3 className="text-base font-semibold">{titleize(key)}</h3><div className="mt-4 text-sm"><ValueView value={value} /></div></article>)}</div> : <div className="mt-6 text-zinc-500">코칭 내용이 비어 있습니다.</div>}
         </section>
+        </div>
       )}
       </div>
     </Shell>
