@@ -1539,6 +1539,8 @@ export default function Home() {
         const currentWeekIndex = eightWeekRotationIndex();
         const plan = detailedTrainingCycle[currentWeekIndex];
         const tuesdayVariant = plan.tuesdayGroups[trainingGroup];
+        const hardStop = overallTone === "warn" || (hrvDev !== null && hrvDev <= -10) || (sleep !== null && sleep < 6) || (loadRatio !== null && loadRatio > 1.35);
+        const cautious = !hardStop && ((hrvDev !== null && hrvDev < -4) || (loadRatio !== null && loadRatio > 1.15));
         const tueTone: Tone = hardStop ? "warn" : cautious ? "neutral" : "good";
         const thuTone: Tone = hardStop ? "warn" : cautious || overallTone !== "good" ? "neutral" : "good";
         const executionLabel = hardStop ? "HOLD" : cautious ? "75% VOLUME" : "FULL";
