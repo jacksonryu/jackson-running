@@ -1347,6 +1347,7 @@ export default function Home() {
 
     return {
       d, r, v, load, ae, lr, ia, sessions, warnings, coaching, recommendation, recoveryText, planB, avoidToday, next3,
+      hrvDev, sleep, loadRatio,
       hrvTone, rhrTone, sleepTone, loadTone, overallTone, overallLabel, ringValue, signals, coachEntries,
       dist7, distWeeklyAvg: dist28 === null ? null : dist28 / 4,
       elev7, elevWeeklyAvg: elev28 === null ? null : elev28 / 4,
@@ -1366,6 +1367,7 @@ export default function Home() {
 
   const {
     d, r, v, load, ae, lr, ia, sessions, warnings, recommendation, recoveryText, planB, avoidToday, next3,
+    hrvDev, sleep, loadRatio,
     hrvTone, rhrTone, sleepTone, loadTone, overallTone, overallLabel, ringValue, signals, coachEntries,
     dist7, distWeeklyAvg, elev7, elevWeeklyAvg, load7, loadWeeklyAvg,
   } = view;
