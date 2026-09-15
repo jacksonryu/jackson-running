@@ -984,6 +984,60 @@ function TrainingFormatCard({ spec, tone = "neutral" }: { spec: TrainingFormat; 
   );
 }
 
+
+function RunnerMotion({ compact = false, label = "RUNNING ENGINE" }: { compact?: boolean; label?: string }) {
+  const h = compact ? 118 : 168;
+  return (
+    <div className={`jr-motion relative overflow-hidden rounded-[28px] border border-zinc-800/80 bg-gradient-to-r from-black via-zinc-950 to-black ${compact ? "p-3" : "p-4 sm:p-5"}`}>
+      <style>{`
+        @keyframes jrBob { 0%,100% { transform: translateY(0px) rotate(0deg); } 50% { transform: translateY(-2px) rotate(.35deg); } }
+        @keyframes jrDash { to { stroke-dashoffset: -120; } }
+        @keyframes jrSweep { 0% { transform: translateX(-28%); opacity: 0; } 18% { opacity: .34; } 70% { opacity: .12; } 100% { transform: translateX(128%); opacity: 0; } }
+        @keyframes jrPulse { 0%,100% { opacity: .36; } 50% { opacity: .86; } }
+        .jr-motion .jr-runner { transform-box: fill-box; transform-origin: center; animation: jrBob 1.12s ease-in-out infinite; }
+        .jr-motion .jr-runner.r2 { animation-delay: -.18s; }
+        .jr-motion .jr-runner.r3 { animation-delay: -.36s; }
+        .jr-motion .jr-runner.r4 { animation-delay: -.54s; }
+        .jr-motion .jr-runner.r5 { animation-delay: -.72s; }
+        .jr-motion .jr-runner.r6 { animation-delay: -.90s; }
+        .jr-motion .jr-speed { stroke-dasharray: 48 18 10 18; animation: jrDash 2.2s linear infinite; }
+        .jr-motion .jr-speed.s2 { animation-duration: 1.65s; }
+        .jr-motion .jr-speed.s3 { animation-duration: 2.8s; }
+        .jr-motion .jr-sweep { animation: jrSweep 3.8s ease-in-out infinite; }
+        .jr-motion .jr-node { animation: jrPulse 1.7s ease-in-out infinite; }
+        @media (prefers-reduced-motion: reduce) {
+          .jr-motion .jr-runner, .jr-motion .jr-speed, .jr-motion .jr-sweep, .jr-motion .jr-node { animation: none !important; }
+        }
+      `}</style>
+      <div className="pointer-events-none absolute inset-0 opacity-70" style={{ background: "radial-gradient(circle at 72% 45%, rgba(34,211,238,.10), transparent 34%), linear-gradient(180deg, transparent, rgba(255,255,255,.015))" }} />
+      <div className="relative flex items-center justify-between gap-4 px-1 pb-2">
+        <div className="text-[10px] font-semibold uppercase tracking-[0.28em] text-zinc-600">{label}</div>
+        <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-zinc-700"><span className="jr-node h-1.5 w-1.5 rounded-full bg-cyan-300" />motion study</div>
+      </div>
+      <svg viewBox="0 0 720 165" className="relative block w-full" style={{ height: h }} aria-label="달리는 동작을 연속 실루엣과 속도선으로 표현한 애니메이션">
+        <defs>
+          <linearGradient id="jrFade" x1="0" x2="1"><stop offset="0" stopColor="#71717a" stopOpacity="0" /><stop offset=".16" stopColor="#a1a1aa" stopOpacity=".62" /><stop offset=".78" stopColor="#e4e4e7" stopOpacity=".58" /><stop offset="1" stopColor="#22d3ee" stopOpacity="0" /></linearGradient>
+          <linearGradient id="jrRunner" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#fafafa" /><stop offset="1" stopColor="#a1a1aa" /></linearGradient>
+        </defs>
+        <g opacity=".55" fill="none" stroke="url(#jrFade)" strokeLinecap="round">
+          <path className="jr-speed" d="M20 61 H700" strokeWidth="3" />
+          <path className="jr-speed s2" d="M0 74 H680" strokeWidth="2" />
+          <path className="jr-speed s3" d="M46 91 H720" strokeWidth="4" opacity=".6" />
+          <path className="jr-speed s2" d="M16 104 H690" strokeWidth="1.5" opacity=".5" />
+        </g>
+        <g className="jr-sweep" opacity=".22"><rect x="0" y="52" width="155" height="4" rx="2" fill="#67e8f9" /><rect x="34" y="86" width="112" height="2" rx="1" fill="#e4e4e7" /></g>
+        <g transform="translate(74 20)"><g className="jr-runner r1" fill="none" stroke="url(#jrRunner)" strokeWidth="10" strokeLinecap="round" strokeLinejoin="round"><circle cx="34" cy="20" r="11" fill="#f4f4f5" stroke="none"/><path d="M34 36 L31 72"/><path d="M31 49 L10 63"/><path d="M31 50 L52 43"/><path d="M31 72 L8 104"/><path d="M31 72 L57 92"/></g></g>
+        <g transform="translate(176 18)"><g className="jr-runner r2" fill="none" stroke="url(#jrRunner)" strokeWidth="10" strokeLinecap="round" strokeLinejoin="round"><circle cx="34" cy="20" r="11" fill="#f4f4f5" stroke="none"/><path d="M34 36 L37 72"/><path d="M35 47 L13 44"/><path d="M36 48 L55 66"/><path d="M37 72 L21 105"/><path d="M37 72 L66 75"/></g></g>
+        <g transform="translate(278 20)"><g className="jr-runner r3" fill="none" stroke="url(#jrRunner)" strokeWidth="10" strokeLinecap="round" strokeLinejoin="round"><circle cx="34" cy="20" r="11" fill="#f4f4f5" stroke="none"/><path d="M34 36 L28 71"/><path d="M31 48 L10 59"/><path d="M31 48 L53 55"/><path d="M28 71 L1 78"/><path d="M28 71 L48 104"/></g></g>
+        <g transform="translate(380 18)"><g className="jr-runner r4" fill="none" stroke="url(#jrRunner)" strokeWidth="10" strokeLinecap="round" strokeLinejoin="round"><circle cx="34" cy="20" r="11" fill="#f4f4f5" stroke="none"/><path d="M34 36 L39 72"/><path d="M36 48 L15 66"/><path d="M36 48 L58 44"/><path d="M39 72 L14 97"/><path d="M39 72 L68 101"/></g></g>
+        <g transform="translate(482 20)"><g className="jr-runner r5" fill="none" stroke="url(#jrRunner)" strokeWidth="10" strokeLinecap="round" strokeLinejoin="round"><circle cx="34" cy="20" r="11" fill="#f4f4f5" stroke="none"/><path d="M34 36 L31 72"/><path d="M31 49 L10 44"/><path d="M31 49 L53 65"/><path d="M31 72 L4 99"/><path d="M31 72 L60 79"/></g></g>
+        <g transform="translate(584 18)"><g className="jr-runner r6" fill="none" stroke="url(#jrRunner)" strokeWidth="10" strokeLinecap="round" strokeLinejoin="round"><circle cx="34" cy="20" r="11" fill="#f4f4f5" stroke="none"/><path d="M34 36 L38 72"/><path d="M36 49 L14 59"/><path d="M36 49 L56 46"/><path d="M38 72 L18 108"/><path d="M38 72 L68 91"/></g></g>
+        <g opacity=".22" stroke="#22d3ee" strokeWidth="1"><line x1="25" y1="127" x2="695" y2="127" strokeDasharray="2 14" /><line x1="52" y1="136" x2="668" y2="136" strokeDasharray="26 18" /></g>
+      </svg>
+    </div>
+  );
+}
+
 function RecentSessionsChart({ sessions }: { sessions: JsonRecord[] }) {
   const data = sessions.slice(0, 7).reverse();
   const maxDist = Math.max(1, ...data.map((s) => safeNumber(s.distance_km) ?? 0));
@@ -1191,7 +1245,7 @@ export default function Home() {
   }, [report]);
 
   if (loading) {
-    return <Shell><div className="pt-24 text-center"><div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-zinc-800 border-t-cyan-400" /><p className="mt-5 text-sm text-zinc-500">최신 러닝 데이터를 불러오는 중...</p></div></Shell>;
+    return <Shell><div className="mx-auto max-w-3xl pt-16"><RunnerMotion compact label="SYNCING RUNNING DATA" /><p className="mt-5 text-center text-sm text-zinc-500">최신 러닝 데이터를 불러오는 중...</p></div></Shell>;
   }
 
   if (error || !report || !view) {
@@ -1254,6 +1308,7 @@ export default function Home() {
       <div onTouchStart={onSwipeStart} onTouchEnd={onSwipeEnd} className="touch-pan-y">
       {tab === "overview" && (
         <div className="mt-6 space-y-5 sm:mt-8">
+          <RunnerMotion label="JACKSON RUNNING ENGINE · LIVE" />
           <section className="grid gap-4 lg:grid-cols-[0.85fr_1.55fr]">
             <div className={`relative overflow-hidden rounded-[30px] border p-6 sm:p-7 ${toneClasses[overallTone].border} ${toneClasses[overallTone].bg}`}>
               <div className="absolute -right-12 -top-12 h-40 w-40 rounded-full bg-white/5 blur-3xl" />
@@ -1378,6 +1433,7 @@ export default function Home() {
 
         return (
           <div className="mt-6 space-y-5 sm:mt-8">
+            <RunnerMotion compact label="QUALITY SESSION · TUE / THU" />
             <section className="relative overflow-hidden rounded-[32px] border border-violet-900/40 bg-gradient-to-br from-violet-950/30 via-zinc-950 to-black p-6 sm:p-8">
               <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-violet-400/10 blur-3xl" />
               <div className="relative">
