@@ -1076,6 +1076,7 @@ export default function Home() {
   const [peakLoading, setPeakLoading] = useState(false);
   const [utmb, setUtmb] = useState<UtmbSnapshot | null>(null);
   const [utmbLoading, setUtmbLoading] = useState(false);
+  const [recoveryExpanded, setRecoveryExpanded] = useState(false);
   const swipeStart = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
@@ -1322,7 +1323,28 @@ export default function Home() {
                   <div className="grid h-[88px] w-[88px] place-items-center rounded-full bg-[#080808]"><div className="text-center"><div className="text-2xl font-bold">{ringValue}</div><div className="text-[10px] text-zinc-600">READINESS</div></div></div>
                 </div>
               </div>
-              {recoveryText && <p className="relative mt-6 line-clamp-4 text-sm leading-7 text-zinc-400">{String(recoveryText)}</p>}
+              {recoveryText && (
+                <div className="relative mt-6">
+                  <button
+                    type="button"
+                    onClick={() => setRecoveryExpanded((v) => !v)}
+                    className="block w-full text-left"
+                    aria-expanded={recoveryExpanded}
+                  >
+                    <p className={`${recoveryExpanded ? "" : "line-clamp-4"} whitespace-pre-wrap break-words text-sm leading-7 text-zinc-400`}>
+                      {String(recoveryText)}
+                    </p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRecoveryExpanded((v) => !v)}
+                    className="mt-2 rounded-lg px-1 py-1 text-xs font-medium text-cyan-300 transition hover:text-cyan-200"
+                    aria-expanded={recoveryExpanded}
+                  >
+                    {recoveryExpanded ? "접기 ▲" : "전체 보기 ▼"}
+                  </button>
+                </div>
+              )}
             </div>
             <WorkoutCard recommendation={recommendation as JsonRecord | null} />
           </section>
