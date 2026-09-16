@@ -64,27 +64,42 @@ type Signal = {
   tone: Tone;
 };
 
+type ChatMessage = {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  createdAt: string;
+};
+
+const COACH_CHAT_STORAGE_KEY = "jackson-running-coach-chat-v1";
+const coachQuickQuestions = [
+  "오늘 뭐 뛰는 게 좋아?",
+  "현재 컨디션 분석해줘",
+  "최근 훈련 흐름과 피로를 같이 봐줘",
+  "지금 기록을 올리려면 가장 부족한 게 뭐야?",
+];
+
 const toneClasses: Record<Tone, { badge: string; dot: string; text: string; border: string; bg: string }> = {
   good: {
-    badge: "border-emerald-700/60 bg-emerald-950/70 text-emerald-300",
-    dot: "bg-emerald-400",
-    text: "text-emerald-300",
-    border: "border-emerald-900/60",
-    bg: "bg-emerald-950/25",
+    badge: "border-black/10 bg-[#2FD07B] text-black",
+    dot: "bg-black",
+    text: "text-[#128653]",
+    border: "border-black/10",
+    bg: "bg-[#E7F7EE]",
   },
   neutral: {
-    badge: "border-sky-700/60 bg-sky-950/70 text-sky-300",
-    dot: "bg-sky-400",
-    text: "text-sky-300",
-    border: "border-sky-900/60",
-    bg: "bg-sky-950/20",
+    badge: "border-black/10 bg-[#116CFF] text-white",
+    dot: "bg-white",
+    text: "text-[#116CFF]",
+    border: "border-black/10",
+    bg: "bg-[#EAF1FF]",
   },
   warn: {
-    badge: "border-amber-700/60 bg-amber-950/70 text-amber-300",
-    dot: "bg-amber-400",
-    text: "text-amber-300",
-    border: "border-amber-900/60",
-    bg: "bg-amber-950/20",
+    badge: "border-black/10 bg-[#FF3B30] text-white",
+    dot: "bg-white",
+    text: "text-[#D02D24]",
+    border: "border-black/10",
+    bg: "bg-[#FFE8E5]",
   },
 };
 
@@ -167,46 +182,47 @@ function RadarChart({ current, peak }: { current: Array<number | null>; peak: Ar
     <div className="relative mx-auto aspect-square w-full max-w-[360px]">
       <svg viewBox={`0 0 ${size} ${size}`} className="h-full w-full overflow-visible">
         {rings.map((ring) => (
-          <polygon key={ring} points={polygonPoints(Array(6).fill(ring), radius, cx, cy)} fill="none" stroke="#27272a" strokeWidth="1" />
+          <polygon key={ring} points={polygonPoints(Array(6).fill(ring), radius, cx, cy)} fill="none" stroke="#D3D0C7" strokeWidth="1" />
         ))}
         {peakAxisLabels.map((_, i) => {
           const angle = -Math.PI / 2 + (Math.PI * 2 * i) / 6;
           const x = cx + Math.cos(angle) * radius;
           const y = cy + Math.sin(angle) * radius;
-          return <line key={i} x1={cx} y1={cy} x2={x} y2={y} stroke="#27272a" strokeWidth="1" />;
+          return <line key={i} x1={cx} y1={cy} x2={x} y2={y} stroke="#D3D0C7" strokeWidth="1" />;
         })}
-        <polygon points={polygonPoints(peakVals, radius, cx, cy)} fill="rgba(113,113,122,.08)" stroke="#52525b" strokeDasharray="5 5" strokeWidth="1.5" />
-        <polygon points={polygonPoints(currentVals, radius, cx, cy)} fill="rgba(34,211,238,.16)" stroke="#22d3ee" strokeWidth="2.5" />
+        <polygon points={polygonPoints(peakVals, radius, cx, cy)} fill="rgba(0,0,0,.02)" stroke="#A9A69F" strokeDasharray="5 5" strokeWidth="1.5" />
+        <polygon points={polygonPoints(currentVals, radius, cx, cy)} fill="rgba(17,108,255,.14)" stroke="#116CFF" strokeWidth="2.5" />
         {currentVals.map((v, i) => {
           const angle = -Math.PI / 2 + (Math.PI * 2 * i) / 6;
           const r = radius * clamp(v, 0, 110) / 110;
-          return <circle key={i} cx={cx + Math.cos(angle) * r} cy={cy + Math.sin(angle) * r} r="3.5" fill="#67e8f9" />;
+          return <circle key={i} cx={cx + Math.cos(angle) * r} cy={cy + Math.sin(angle) * r} r="3.5" fill="#FF3B30" />;
         })}
         {peakAxisLabels.map((label, i) => {
           const angle = -Math.PI / 2 + (Math.PI * 2 * i) / 6;
           const r = radius + 34;
           const x = cx + Math.cos(angle) * r;
           const y = cy + Math.sin(angle) * r;
-          return <text key={label} x={x} y={y} textAnchor="middle" dominantBaseline="middle" fill="#71717a" fontSize="11">{label}</text>;
+          return <text key={label} x={x} y={y} textAnchor="middle" dominantBaseline="middle" fill="#6B675F" fontSize="11">{label}</text>;
         })}
       </svg>
-      {!hasCurrent && <div className="absolute inset-0 grid place-items-center"><div className="rounded-full border border-zinc-800 bg-black/80 px-4 py-2 text-xs text-zinc-500">히스토리 백필 후 자동 표시</div></div>}
+      {!hasCurrent && <div className="absolute inset-0 grid place-items-center"><div className="rounded-full border border-black/10 bg-black/80 px-4 py-2 text-xs text-black/50">히스토리 백필 후 자동 표시</div></div>}
     </div>
   );
 }
 
 function PeakScoreCard({ label, score, peakDate, detail }: { label: string; score: number | null; peakDate: string | null; detail: string }) {
   const tone = scoreTone(score);
+  const color = tone === "good" ? "#2FD07B" : tone === "warn" ? "#FF3B30" : "#116CFF";
   return (
-    <div className={`rounded-2xl border p-5 ${toneClasses[tone].border} ${toneClasses[tone].bg}`}>
+    <div className="rounded-[18px] border border-black/10 bg-white p-5">
       <div className="flex items-center justify-between gap-3">
-        <div className="text-sm text-zinc-500">{label}</div>
-        <Pill tone={tone}>{score === null ? "대기" : score >= 100 ? "NEW PEAK" : score >= 95 ? "PEAK 근접" : score < 80 ? "보강 필요" : "성장 중"}</Pill>
+        <div className="text-[10px] font-black uppercase tracking-[0.14em] text-black/40">{label}</div>
+        <span className="h-3 w-3 rounded-full" style={{ background: color }} />
       </div>
-      <div className="mt-3 text-4xl font-semibold tracking-tight">{scoreText(score)}</div>
+      <div className="mt-3 text-4xl font-black tracking-[-0.06em]">{scoreText(score)}</div>
       <div className="mt-3"><ProgressBar value={score ?? 0} tone={tone} /></div>
-      <div className="mt-3 text-xs leading-5 text-zinc-500">{detail}</div>
-      <div className="mt-2 text-[11px] text-zinc-600">{peakDate ? `기준 최고점 ${prettyDate(peakDate, false)}` : "전체 과거 데이터 계산 후 최고점 날짜 표시"}</div>
+      <div className="mt-3 text-xs font-medium leading-5 text-black/50">{detail}</div>
+      <div className="mt-2 text-[10px] font-bold text-black/35">{peakDate ? `최고점 기준 ${prettyDate(peakDate, false)}` : "과거 데이터 계산 후 표시"}</div>
     </div>
   );
 }
@@ -258,15 +274,15 @@ function Icon({ name, className = "h-5 w-5" }: { name: string; className?: strin
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <main className="min-h-screen bg-[#050505] text-white">
-      <div className="mx-auto max-w-7xl px-4 pb-14 pt-5 sm:px-6 sm:pt-8">{children}</div>
+    <main className="min-h-screen bg-[#F2F0E8] text-[#0A0A0A] selection:bg-[#FF3B30] selection:text-white">
+      <div className="mx-auto max-w-6xl px-4 pb-28 pt-5 sm:px-6 sm:pt-8">{children}</div>
     </main>
   );
 }
 
 function Pill({ tone, children }: { tone: Tone; children: React.ReactNode }) {
   return (
-    <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold ${toneClasses[tone].badge}`}>
+    <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-black ${toneClasses[tone].badge}`}>
       <span className={`h-1.5 w-1.5 rounded-full ${toneClasses[tone].dot}`} />
       {children}
     </span>
@@ -274,28 +290,24 @@ function Pill({ tone, children }: { tone: Tone; children: React.ReactNode }) {
 }
 
 function MiniMetric({ icon, label, value, detail, tone = "neutral" }: { icon: string; label: string; value: string; detail: string; tone?: Tone }) {
-  const palette = tone === "good"
-    ? "bg-[#8EF7A4] text-black border-black/10"
-    : tone === "warn"
-      ? "bg-[#FFE348] text-black border-black/10"
-      : "bg-[#C9C7FF] text-black border-black/10";
+  const accent = tone === "good" ? "#2FD07B" : tone === "warn" ? "#FFD51E" : "#116CFF";
   return (
-    <div className={`rounded-[24px] border p-4 sm:p-5 ${palette}`}>
+    <div className="rounded-[18px] border border-black/10 bg-white p-4 shadow-[0_1px_0_rgba(0,0,0,.04)] sm:p-5">
       <div className="flex items-center justify-between gap-3">
-        <span className="text-[10px] font-semibold uppercase tracking-[0.18em] opacity-55">{label}</span>
-        <span className="rounded-full border border-black/15 bg-black/5 p-2"><Icon name={icon} className="h-4 w-4" /></span>
+        <span className="text-[10px] font-black uppercase tracking-[0.16em] text-black/45">{label}</span>
+        <span className="grid h-9 w-9 place-items-center rounded-full" style={{ background: accent }}><Icon name={icon} className="h-4 w-4 text-black" /></span>
       </div>
-      <div className="mt-4 text-3xl font-black tracking-[-0.04em]">{value}</div>
-      <div className="mt-2 text-xs font-medium leading-5 opacity-65">{detail}</div>
+      <div className="mt-4 text-3xl font-black tracking-[-0.055em] text-black">{value}</div>
+      <div className="mt-2 text-xs font-medium leading-5 text-black/50">{detail}</div>
     </div>
   );
 }
 
 function ProgressBar({ value, tone = "neutral" }: { value: number; tone?: Tone }) {
-  const gradient = tone === "good" ? "from-emerald-500 to-teal-300" : tone === "warn" ? "from-amber-500 to-orange-300" : "from-sky-500 to-cyan-300";
+  const color = tone === "good" ? "#2FD07B" : tone === "warn" ? "#FF3B30" : "#116CFF";
   return (
-    <div className="h-2 overflow-hidden rounded-full bg-zinc-800">
-      <div className={`h-full rounded-full bg-gradient-to-r ${gradient}`} style={{ width: `${clamp(value)}%` }} />
+    <div className="h-2 overflow-hidden rounded-full bg-black/10">
+      <div className="h-full rounded-full" style={{ width: `${clamp(value)}%`, background: color }} />
     </div>
   );
 }
@@ -303,43 +315,44 @@ function ProgressBar({ value, tone = "neutral" }: { value: number; tone?: Tone }
 function ComparisonRow({ label, current, baseline, unit, icon }: { label: string; current: number | null; baseline: number | null; unit: string; icon: string }) {
   const ratio = current !== null && baseline && baseline > 0 ? current / baseline : null;
   const pct = ratio !== null ? clamp(ratio * 50, 4, 100) : 0;
-  const palette = label.includes("거리") ? "bg-[#E7FF43]" : label.includes("상승") ? "bg-[#8EE8FF]" : "bg-[#FFB28F]";
+  const palette = label.includes("거리") ? "bg-[#FF3B30]" : label.includes("상승") ? "bg-[#116CFF]" : "bg-[#FFD51E]";
+  const textColor = label.includes("상승") || label.includes("거리") ? "text-white" : "text-black";
   return (
-    <div className={`rounded-[24px] border border-black/10 p-4 text-black sm:p-5 ${palette}`}>
+    <div className={`rounded-[18px] border border-black/10 p-4 sm:p-5 ${palette} ${textColor}`}>
       <div className="flex items-start justify-between gap-4">
         <div>
-          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] opacity-50">{label}</div>
-          <div className="mt-2 text-4xl font-black tracking-[-0.05em]">{current === null ? "—" : `${n(current, current >= 100 ? 0 : 1)}${unit}`}</div>
+          <div className="text-[10px] font-black uppercase tracking-[0.16em] opacity-60">{label}</div>
+          <div className="mt-2 text-4xl font-black tracking-[-0.06em]">{current === null ? "—" : `${n(current, current >= 100 ? 0 : 1)}${unit}`}</div>
         </div>
-        <span className="rounded-full border border-black/15 bg-black/5 p-2"><Icon name={icon} className="h-4 w-4" /></span>
+        <span className="grid h-9 w-9 place-items-center rounded-full bg-black/10"><Icon name={icon} className="h-4 w-4" /></span>
       </div>
-      <div className="mt-4 flex items-end justify-between gap-4">
-        <div className="text-xs font-medium opacity-55">28일 주간평균 {baseline === null ? "—" : `${n(baseline, baseline >= 100 ? 0 : 1)}${unit}`}</div>
+      <div className="mt-4 flex items-end justify-between gap-4 text-xs font-bold">
+        <div className="opacity-60">28일 주간평균 {baseline === null ? "—" : `${n(baseline, baseline >= 100 ? 0 : 1)}${unit}`}</div>
         <div className="text-lg font-black">{ratio === null ? "—" : `${n(ratio * 100, 0)}%`}</div>
       </div>
-      <div className="mt-3 h-2 overflow-hidden rounded-full bg-black/10"><div className="h-full rounded-full bg-black/70" style={{ width: `${pct}%` }} /></div>
+      <div className="mt-3 h-2 overflow-hidden rounded-full bg-black/15"><div className="h-full rounded-full bg-black/75" style={{ width: `${pct}%` }} /></div>
     </div>
   );
 }
 
 function StatCard({ label, value, sub, icon }: { label: string; value: string; sub?: string; icon?: string }) {
-  const palette = label.includes("HRV") || label.includes("Sleep")
-    ? "bg-[#C9C7FF]"
-    : label.includes("Elevation") || label.includes("오르막")
-      ? "bg-[#8EE8FF]"
-      : label.includes("Distance") || label.includes("효율") || label.includes("Easy")
-        ? "bg-[#E7FF43]"
+  const palette = label.includes("HRV") || label.includes("SLEEP")
+    ? "bg-[#116CFF] text-white"
+    : label.includes("고도") || label.includes("Elevation") || label.includes("오르막")
+      ? "bg-[#FFD51E] text-black"
+      : label.includes("거리") || label.includes("Distance") || label.includes("효율") || label.includes("Easy")
+        ? "bg-[#2FD07B] text-black"
         : label.includes("interval") || label.includes("스피드")
-          ? "bg-[#FFB28F]"
-          : "bg-[#F4F1E8]";
+          ? "bg-[#FF3B30] text-white"
+          : "bg-white text-black";
   return (
-    <div className={`rounded-[24px] border border-black/10 p-5 text-black ${palette}`}>
+    <div className={`rounded-[18px] border border-black/10 p-5 ${palette}`}>
       <div className="flex items-center justify-between gap-3">
-        <div className="text-[10px] font-semibold uppercase tracking-[0.18em] opacity-50">{label}</div>
-        {icon && <span className="rounded-full border border-black/15 bg-black/5 p-2"><Icon name={icon} className="h-4 w-4" /></span>}
+        <div className="text-[10px] font-black uppercase tracking-[0.16em] opacity-55">{label}</div>
+        {icon && <span className="grid h-9 w-9 place-items-center rounded-full bg-black/10"><Icon name={icon} className="h-4 w-4" /></span>}
       </div>
-      <div className="mt-4 text-3xl font-black tracking-[-0.05em]">{value}</div>
-      {sub && <div className="mt-3 text-xs font-medium leading-5 opacity-60">{sub}</div>}
+      <div className="mt-4 text-3xl font-black tracking-[-0.06em]">{value}</div>
+      {sub && <div className="mt-3 text-xs font-medium leading-5 opacity-65">{sub}</div>}
     </div>
   );
 }
@@ -353,8 +366,8 @@ function titleize(key: string) {
     today_recommendation: "오늘 권장 훈련",
     today_workout: "오늘 권장 훈련",
     recommended_session: "오늘 권장 훈련",
-    plan_b: "Plan B",
-    planB: "Plan B",
+    plan_b: "PLAN B",
+    planB: "PLAN B",
     avoid_today: "오늘 피해야 할 훈련",
     next_3_days_plan: "향후 3일 계획",
     next_3_days: "향후 3일 계획",
@@ -373,14 +386,14 @@ function renderPrimitive(v: unknown) {
 
 function ValueView({ value }: { value: unknown }) {
   if (value === null || value === undefined || typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
-    return <p className="whitespace-pre-wrap leading-7 text-zinc-300">{renderPrimitive(value)}</p>;
+    return <p className="whitespace-pre-wrap leading-7 text-black/80">{renderPrimitive(value)}</p>;
   }
   if (Array.isArray(value)) {
-    if (value.length === 0) return <p className="text-zinc-500">없음</p>;
+    if (value.length === 0) return <p className="text-black/50">없음</p>;
     return (
       <div className="space-y-2">
         {value.map((item, i) => (
-          <div key={i} className="rounded-xl bg-zinc-950 px-4 py-3 text-sm leading-6 text-zinc-300">
+          <div key={i} className="rounded-xl bg-zinc-950 px-4 py-3 text-sm leading-6 text-black/80">
             {typeof item === "object" && item !== null ? <ObjectRows obj={item as JsonRecord} /> : renderPrimitive(item)}
           </div>
         ))}
@@ -395,8 +408,8 @@ function ObjectRows({ obj }: { obj: JsonRecord }) {
     <div className="space-y-3">
       {Object.entries(obj).map(([k, v]) => (
         <div key={k} className="grid gap-1 sm:grid-cols-[150px_1fr]">
-          <div className="text-xs uppercase tracking-wide text-zinc-500">{k.replaceAll("_", " ")}</div>
-          <div className="text-sm leading-6 text-zinc-300">{typeof v === "object" && v !== null ? <ValueView value={v} /> : renderPrimitive(v)}</div>
+          <div className="text-xs uppercase tracking-wide text-black/50">{k.replaceAll("_", " ")}</div>
+          <div className="text-sm leading-6 text-black/80">{typeof v === "object" && v !== null ? <ValueView value={v} /> : renderPrimitive(v)}</div>
         </div>
       ))}
     </div>
@@ -406,13 +419,19 @@ function ObjectRows({ obj }: { obj: JsonRecord }) {
 function WorkoutCard({ recommendation }: { recommendation: JsonRecord | null }) {
   if (!recommendation) {
     return (
-      <div className="rounded-[28px] border border-black/10 bg-[#FFE348] p-6 text-black">
-        <div className="text-[10px] font-semibold uppercase tracking-[0.18em] opacity-50">오늘 추천 훈련</div>
-        <div className="mt-3 text-2xl font-black">코치 추천 데이터가 없습니다.</div>
+      <div className="rounded-[20px] border border-black/10 bg-[#FFD51E] p-6 text-black">
+        <div className="text-[10px] font-black uppercase tracking-[0.16em] opacity-55">TODAY RUN</div>
+        <div className="mt-3 text-2xl font-black">추천 훈련 데이터가 없습니다.</div>
       </div>
     );
   }
-  const type = recommendation.training_type ?? recommendation.type ?? recommendation.session_type ?? "오늘 훈련";
+  const type = String(recommendation.training_type ?? recommendation.type ?? recommendation.session_type ?? "오늘 훈련");
+  const lower = type.toLowerCase();
+  const keyword = lower.includes("easy") || type.includes("이지") || type.includes("회복") ? "EASY RUN"
+    : lower.includes("interval") || type.includes("인터벌") ? "INTERVAL"
+    : lower.includes("tempo") || type.includes("템포") ? "TEMPO RUN"
+    : lower.includes("rest") || type.includes("휴식") ? "REST"
+    : "TODAY RUN";
   const distance = safeNumber(recommendation.distance_km);
   const duration = safeNumber(recommendation.duration_minutes);
   const rpe = safeNumber(recommendation.target_rpe);
@@ -420,52 +439,32 @@ function WorkoutCard({ recommendation }: { recommendation: JsonRecord | null }) 
   const reasoning = recommendation.reasoning ?? recommendation.reason ?? "회복과 최근 훈련 부하를 반영한 추천입니다.";
 
   return (
-    <div className="relative overflow-hidden rounded-[28px] border border-black/10 bg-[#FFE348] p-6 text-black sm:p-7">
-      <div className="absolute -right-10 -top-10 h-36 w-36 rounded-full bg-white/35 blur-2xl" />
-      <div className="relative">
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.18em] opacity-55"><Icon name="target" className="h-4 w-4" />오늘 추천 훈련</div>
-          <span className="rounded-full border border-black/15 bg-black/5 px-3 py-1 text-[10px] font-bold">AI COACH</span>
-        </div>
-        <h2 className="mt-4 text-4xl font-black tracking-[-0.06em] sm:text-5xl">{String(type)}</h2>
-        <div className="mt-5 grid grid-cols-3 gap-2">
-          <div className="rounded-2xl bg-black p-3 text-white"><div className="text-[10px] text-zinc-500">거리</div><div className="mt-1 text-lg font-black">{distance === null ? "—" : `${n(distance, 1)}km`}</div></div>
-          <div className="rounded-2xl bg-black p-3 text-white"><div className="text-[10px] text-zinc-500">시간</div><div className="mt-1 text-lg font-black">{duration === null ? "—" : `${n(duration, 0)}분`}</div></div>
-          <div className="rounded-2xl bg-black p-3 text-white"><div className="text-[10px] text-zinc-500">RPE</div><div className="mt-1 text-lg font-black">{rpe === null ? "—" : n(rpe, 0)}</div></div>
-        </div>
-        <div className="mt-4 rounded-2xl border border-black/10 bg-black/5 p-4"><div className="text-[10px] font-bold uppercase tracking-[0.15em] opacity-45">강도 / 페이스</div><div className="mt-2 text-sm font-bold leading-6">{String(intensity)}</div></div>
-        <p className="mt-4 text-sm font-medium leading-7 opacity-65">{String(reasoning)}</p>
+    <div className="rounded-[20px] border border-black/10 bg-[#FFD51E] p-5 text-black sm:p-6">
+      <div className="flex items-center justify-between gap-4">
+        <div className="text-[10px] font-black uppercase tracking-[0.16em] opacity-55">오늘 추천 훈련</div>
+        <span className="rounded-full bg-black px-3 py-1 text-[10px] font-black text-white">COACH</span>
       </div>
+      <h2 className="mt-3 text-4xl font-black leading-none tracking-[-0.065em] sm:text-5xl">{keyword}</h2>
+      <p className="mt-3 text-sm font-bold leading-6 opacity-70">{type}</p>
+      <div className="mt-5 grid grid-cols-3 gap-px overflow-hidden rounded-[14px] border border-black/15 bg-black/15">
+        <div className="bg-white/80 p-3"><div className="text-[9px] font-black uppercase opacity-45">거리</div><div className="mt-1 text-lg font-black">{distance === null ? "—" : `${n(distance, 1)}km`}</div></div>
+        <div className="bg-white/80 p-3"><div className="text-[9px] font-black uppercase opacity-45">시간</div><div className="mt-1 text-lg font-black">{duration === null ? "—" : `${n(duration, 0)}분`}</div></div>
+        <div className="bg-white/80 p-3"><div className="text-[9px] font-black uppercase opacity-45">RPE</div><div className="mt-1 text-lg font-black">{rpe === null ? "—" : n(rpe, 0)}</div></div>
+      </div>
+      <div className="mt-4 border-t border-black/15 pt-4"><div className="text-[9px] font-black uppercase tracking-[0.14em] opacity-45">PACE</div><div className="mt-1 text-sm font-black leading-6">{String(intensity)}</div></div>
+      <p className="mt-3 text-sm font-medium leading-6 opacity-65">{String(reasoning)}</p>
     </div>
   );
 }
 
 function SimpleBullet({ tone, title, detail }: { tone: Tone; title: string; detail: string }) {
+  const color = tone === "good" ? "#2FD07B" : tone === "warn" ? "#FF3B30" : "#116CFF";
   return (
-    <div className="flex gap-3 rounded-2xl border border-zinc-800 bg-zinc-950/70 p-4">
-      <span className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${toneClasses[tone].dot}`} />
-      <div><div className="font-medium text-zinc-100">{title}</div><div className="mt-1 text-sm leading-6 text-zinc-500">{detail}</div></div>
+    <div className="flex gap-3 rounded-[16px] border border-black/10 bg-white p-4">
+      <span className="mt-1 h-3 w-3 shrink-0 rounded-full" style={{ background: color }} />
+      <div><div className="font-black text-black">{title}</div><div className="mt-1 text-sm leading-6 text-black/55">{detail}</div></div>
     </div>
   );
-}
-
-
-
-type QualitySession = {
-  day: string;
-  title: string;
-  subtitle: string;
-  tone: Tone;
-  main: string;
-  details: string[];
-  fallback: string;
-  reason: string;
-};
-
-function weekRotationIndex() {
-  const now = new Date();
-  const utcDay = Math.floor(now.getTime() / 86400000);
-  return Math.floor(utcDay / 7) % 4;
 }
 
 function nextWeekdayLabel(targetDay: number) {
@@ -477,31 +476,6 @@ function nextWeekdayLabel(targetDay: number) {
   const label = new Intl.DateTimeFormat("ko-KR", { month: "numeric", day: "numeric", weekday: "short" }).format(d);
   return diff === 0 ? `오늘 · ${label}` : label;
 }
-
-function QualitySessionCard({ session }: { session: QualitySession }) {
-  return (
-    <article className={`rounded-[28px] border p-5 sm:p-6 ${toneClasses[session.tone].border} ${toneClasses[session.tone].bg}`}>
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <div className="text-xs uppercase tracking-[0.22em] text-zinc-600">{session.day}</div>
-          <h3 className="mt-1 text-2xl font-semibold tracking-tight">{session.title}</h3>
-          <div className="mt-1 text-sm text-zinc-500">{session.subtitle}</div>
-        </div>
-        <Pill tone={session.tone}>{session.tone === "good" ? "GO" : session.tone === "warn" ? "HOLD" : "조건부"}</Pill>
-      </div>
-      <div className="mt-5 rounded-2xl border border-zinc-800/80 bg-black/35 p-4">
-        <div className="text-xs text-zinc-600">메인 세션</div>
-        <div className="mt-2 text-lg font-semibold leading-7 text-zinc-100">{session.main}</div>
-      </div>
-      <div className="mt-4 grid gap-2">
-        {session.details.map((item, i) => <div key={i} className="flex gap-2 text-sm leading-6 text-zinc-400"><span className={`mt-2 h-1.5 w-1.5 shrink-0 rounded-full ${toneClasses[session.tone].dot}`} />{item}</div>)}
-      </div>
-      <div className="mt-4 rounded-2xl bg-zinc-950/70 p-4 text-sm leading-6 text-zinc-500"><span className="font-medium text-zinc-300">Plan B · </span>{session.fallback}</div>
-      <div className="mt-3 text-xs leading-5 text-zinc-600">{session.reason}</div>
-    </article>
-  );
-}
-
 
 type TrainingGroup = "special" | "group1" | "group2";
 type TrainingVenue = "track" | "treadmill";
@@ -994,11 +968,11 @@ function TrainingSetStrip({ work, accent = "bg-black" }: { work: string; accent?
   const shown = Math.min(count, 12);
   return (
     <div className="mt-5">
-      <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-[0.18em] opacity-45">
+      <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-[0.16em] opacity-45">
         <span>SET MAP</span><span>{count} SETS</span>
       </div>
-      <div className="mt-2 flex gap-1.5">
-        {Array.from({ length: shown }).map((_, i) => <span key={i} className={`h-2 min-w-0 flex-1 rounded-full ${accent}`} />)}
+      <div className="mt-2 flex items-end gap-1.5">
+        {Array.from({ length: shown }).map((_, i) => <span key={i} className={`min-w-0 flex-1 rounded-sm ${accent}`} style={{ height: `${10 + (i % 4) * 6}px` }} />)}
         {count > shown && <span className="ml-1 text-xs font-black">+{count - shown}</span>}
       </div>
     </div>
@@ -1006,54 +980,38 @@ function TrainingSetStrip({ work, accent = "bg-black" }: { work: string; accent?
 }
 
 function TrainingInfographicCard({ spec, day, venue, status }: { spec: TrainingFormat; day: TrainingDay; venue: TrainingVenue; status: string }) {
-  const bg = day === "tuesday"
-    ? venue === "track" ? "bg-[#8EE8FF]" : "bg-[#C9C7FF]"
-    : venue === "track" ? "bg-[#FFB28F]" : "bg-[#FFE348]";
-  const dayLabel = day === "tuesday" ? "TUESDAY QUALITY" : "THURSDAY HILL";
-  const venueLabel = venue === "track" ? (day === "tuesday" ? "TRACK" : "OUTDOOR HILL") : "TREADMILL";
+  const isTuesday = day === "tuesday";
+  const bg = isTuesday ? "bg-[#116CFF] text-white" : "bg-[#FFD51E] text-black";
+  const venueLabel = venue === "track" ? (isTuesday ? "TRACK" : "OUTDOOR") : "TREADMILL";
+  const darkCard = isTuesday ? "bg-black text-white" : "bg-black text-white";
 
   return (
-    <article className={`relative overflow-hidden rounded-[30px] border border-black/10 p-5 text-black sm:p-7 ${bg}`}>
-      <div className="pointer-events-none absolute -right-16 -top-16 h-44 w-44 rounded-full bg-white/30 blur-3xl" />
-      <div className="relative">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <div className="text-[10px] font-black uppercase tracking-[0.22em] opacity-45">{dayLabel} · {venueLabel}</div>
-            <div className="mt-2 text-3xl font-black leading-[1.02] tracking-[-0.05em] sm:text-4xl">{spec.work}</div>
-          </div>
-          <span className="shrink-0 rounded-full bg-black px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-white">{status}</span>
+    <article className={`rounded-[20px] border border-black/10 p-5 sm:p-6 ${bg}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="text-[10px] font-black uppercase tracking-[0.17em] opacity-60">{isTuesday ? "INTERVAL" : "HILL"} · {venueLabel}</div>
+          <div className="mt-2 text-3xl font-black leading-[1] tracking-[-0.06em] sm:text-4xl">{spec.work}</div>
         </div>
-
-        <TrainingSetStrip work={spec.work} />
-
-        <div className="mt-5 rounded-[22px] bg-black p-4 text-white sm:p-5">
-          <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/45">TARGET PACE / SPEED</div>
-          <div className="mt-2 text-lg font-black leading-7 tracking-[-0.02em] sm:text-xl">{spec.pace}</div>
-        </div>
-
-        <div className="mt-3 grid gap-3 sm:grid-cols-3">
-          {spec.lap400 && (
-            <div className="rounded-[20px] bg-white/75 p-4">
-              <div className="text-[10px] font-black uppercase tracking-[0.16em] opacity-40">400M LAP</div>
-              <div className="mt-2 text-base font-black leading-6">{spec.lap400}</div>
-            </div>
-          )}
-          <div className="rounded-[20px] bg-white/75 p-4">
-            <div className="text-[10px] font-black uppercase tracking-[0.16em] opacity-40">RECOVERY</div>
-            <div className="mt-2 text-base font-black leading-6">{spec.recovery}</div>
-          </div>
-          <div className="rounded-[20px] bg-white/75 p-4">
-            <div className="text-[10px] font-black uppercase tracking-[0.16em] opacity-40">VOLUME</div>
-            <div className="mt-2 text-base font-black leading-6">{spec.volume}</div>
-          </div>
-        </div>
-
-        {spec.note && <div className="mt-4 border-t border-black/15 pt-4 text-xs font-semibold leading-5 opacity-55">{spec.note}</div>}
+        <span className="shrink-0 rounded-full bg-black px-3 py-1.5 text-[10px] font-black text-white">{status}</span>
       </div>
+
+      <TrainingSetStrip work={spec.work} accent={isTuesday ? "bg-white" : "bg-black"} />
+
+      <div className={`mt-5 rounded-[16px] p-4 ${darkCard}`}>
+        <div className="text-[9px] font-black uppercase tracking-[0.16em] text-white/45">PACE / SPEED</div>
+        <div className="mt-2 text-lg font-black leading-7 tracking-[-0.02em] sm:text-xl">{spec.pace}</div>
+      </div>
+
+      <div className="mt-3 grid gap-2 sm:grid-cols-3">
+        {spec.lap400 && <div className="rounded-[14px] bg-white/90 p-4 text-black"><div className="text-[9px] font-black uppercase tracking-[0.14em] opacity-45">400M</div><div className="mt-2 text-sm font-black leading-5">{spec.lap400}</div></div>}
+        <div className="rounded-[14px] bg-white/90 p-4 text-black"><div className="text-[9px] font-black uppercase tracking-[0.14em] opacity-45">RECOVERY</div><div className="mt-2 text-sm font-black leading-5">{spec.recovery}</div></div>
+        <div className="rounded-[14px] bg-white/90 p-4 text-black"><div className="text-[9px] font-black uppercase tracking-[0.14em] opacity-45">VOLUME</div><div className="mt-2 text-sm font-black leading-5">{spec.volume}</div></div>
+      </div>
+
+      {spec.note && <div className="mt-4 border-t border-black/20 pt-4 text-xs font-bold leading-5 opacity-60">{spec.note}</div>}
     </article>
   );
 }
-
 
 const JACKSON_HAND_TITLE = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA3QAAACqCAYAAADlTA15AAB2VElEQVR4nO2deZxkVXn3v913umamBVpgBEd0HBlZBEYgKMYFNbi9cSfmNW6JxiVG4xLjEpdgEpe4xy0ajXGP0ZiYmLjFEImKJoiiwCgBcXQcxUEcwGHpmanu2/X+8TvPe869dWuv7q7qer6fT32q6tatu5x7tmc5zzPVaDRwHMdxHMdxHMdxxo/p1b4Ax3Ecx3Ecx3Ecpz9coHMcx3Ecx3EcxxlTXKBzHMdxHMdxHMcZU9at9gU4jtM1m5PPe1btKhzHcRzHcZyRoVuBbia8z4b3dGK5G5gf2hVVkyWftyaf9yS/HZVs37nM1+M4q81U8tkjGzmO4ziO40woU11GuZwBNiXf54hCHkigS4W6a0v/z0vfs+T/ObCAJqhVLqC3An6NKLjdEPbfA9wInBV+WwIuRZPbvWGf5RY0HWelKLfB2xKFut2ozjuO4ziO4zgTRjcWurnk8wyaRNYoCmQgocqEK9Ak07gc2JccbzsS3nLg4nCsE4H1Lc5bq7iuDHhq8tsPw+cGceLrljpnLTCL2shBYnubCtsz4GTUvnbQrDxxHMdxHMdx1jCdBLop4NjwngEvQ0LT2eF7DrwT+CgSpDaG7Q2KbpJlakRr3EnJ9qzic42iQFcjCpW2zwbgfeF7HTgzvDvOuDMLnEqs61eG9xpqb48J33PgH4Cvs/pC3SywLfm+Y7UuxHEcx3EcZ63TS1CUDLgvcSIJmjgeAlxEURhbBB6HXCIJ/9kQPh8CnBu25cCbgKspWv3qyb5/S7WFLgc+HN5vpijgnYasGbtY/cmt4wyKuVbWkCV6huIauo+hNtNOidKJ6dIxj0s+mztn2bW6FTOdd3FGnLQupVbh6YrtjuM4juOsIr1GucxotqI9k+aJZA34O+BO4fuPiELZNPALtAYIJJQ9Fvhk2KcOPD58/lsk1LXiGaVrqYeXp2Nw1gqzFOtz2WKdJ+8ZcAxFd+duyJAV0M4zl5xjge7X523uvIszBmwDDk++/zB8Pwwp5sw74+Lwfnj5AMgFeGF5L9NxHMdxHOgs0DWA69CatOOQ5c3+ZxO+VlaBw4Cfhc/rK363/x0CfJriJPUI4C20F+bK566jSempKECK46wVdqEorotoAm3Cm3EYcrfMkXVsG72vH52m6Ob8FOLE/W9Qm9pB94GGTKjc13YvZ9QwobyqXzfX+xPD9xNR/fhiab9xtNxV3W+qSFnEo8k6juM4I0o3FrqfIIEuB16IJnbfAr5JtSskREtelSBXD8dIJ6VVFod028HwPo0mlGnAlPKxbygdx3HGncORtWMJTZ43AA8itrP7AB9CE85+hDnCcbYln1Nr/FTlPzrjwtz4U6NoFU6VZVZHtgMnhG05cAExMNUVK3CNvZJakmeSbVPoXqbQffw9cJfwewONhf1Gk00j1KbtwqyYs8m2XqIzp/9bKH339uc4jjMhdCPQNVA6gGOJ1oGbiRp8aB6AtqN1cmWtZx25aP4WGujvR7OV7Rvh8wE0eTiIBtUceCLwSqKgOF36r+OsNfZSnIAuEYMSgSZtM8iCntP/BDoNvHIzak+2ztWYBbaEz1VunXtojoo7Km535b7IFT7NbCMKbr9AdeBy1N8eAG5HFHqs7zWrVVq+ab2x+jDKwsU65Ko8Resx0aLK9ku6RtWEu4zompoKfP24TEMUtu08s3jqHsdxnImg2zV0OfDZ8HkWDfD70UAyRbMw9W3gHIoD4HXAHdDg9Um0bu788Nv14RxfCMf6KfDQ8Ns+otXtb4D3EycTx1McCG9DcU2R46wlzHKQTp7nkDtYakXb1eNxN5W+14GnIeHt3uE9RxYKU+qMGu0CwmTAA5N9rkOBmPYw2f1FKnzXkaX3r2iOKgwSFmaRwuAQYn1bRAo6G0vWA18L300ZV0d1bIHhCnb9WrVSMuAviNd/AbrXaaSQqBHXex+D6k2vdSVDgbps3PohcDpRUWPja7fHTYMOZWgsNffozxIjR+fAhbiy03EcZ83TS1CUA6X3a9GAeghxALEJUwMN3unxLWAJFCel6aCzv7R/+m775qV9yoPVd8L7PJM5SXPWDjZh3Y0mlg8Dvgo8mmoBJkdpDfqp9+l/rkbtagp4AdHi8neo/f9Lm+PsI0a07ddVsxtOTD7fgKz3ViapgGoWywxZOzPgvcQJ8AfQvX4K9T/zjI5VcTmxMtpCFOwymoPuGBuQQF92o58B/okorNg6Ozve+1A5LyKvjc2ojHu1Qg2TPeG9hhQWtib8IcCjiFbHN6Prfhoxiuxx9GcFT9eoQtGlOUPWz5y47rwT1jeU3aMz4DeT73dDUXCtfffrMuo4juOMML1GuUzJgZvC69qw7ajk9zlga2l/E+SmkYby6PDb2cCLBriO8jnK2x1n3LktajdV9bqBhJEDaIK9id4mbqkF/mZkoZhBk9l0sngycAlxQlxFBpxCFAIvo6ioGQbltAinU21Vgihc2rWZ0GJrBt+E7vPxaCK8Gi5q6f2shjB5BhoLylGMy1StiYZqAbCOnr/Vgwwp/hbRGmwTSFbLJXAK1VMT7O0a0/ufYXjWLbP2QbEOZsCfhe0HiGNiK7Ykn+9EFBRNoDaB3O5rkFQmjuM4zpgwiECXYpPMdDJyBXBVab+rgLPC53Tw3IjW1v02GkD30J1rzhU0D1iessBZa1i7aiBh63vIhcuYQpbyGeRa2M6CZsyF1wxxcl0D/ou49u3eFf/LaS90TIfjvBq1zf3I6rEcbl82uS1bPp6dbLN1RTnwpXB9h5b2B13zI4GPsLJClUUlNVYyiIj1weuIQt1NwK17OEaVgqEO/BFynbdncXvgZWH/Pwe+3uK/vdCvMFheC3c+eg4Po3qt5UGiMHYSGsf6cbs8K7w/AK1BL0eK7iU68xxxrLsKub3OoOjQJkR/pI/rdBzHccaQYQl0RtkqUB5Mbko+L9LMHnqf+JXPsdoDWKpB/QlwZPLdI3A6vVCesM6iyZq5NJtlZx3wcuBV9KaRnwXuEf7TQILi+nCOGeAlaJ2qafu/gdYYdRO+fTMxr+Sw2UyxnYFcTTOK0T9J3s2S0SrpuVkzJiXlyUEUYCoV6rqpO/NEgSgH/hmV2Z7wf3PfPA25VV6KFHZHJ8efQlbVbw14D8PgLKJFq6wMzIEPAvdC93hJ2NZPrsfUApha6Ow3iG6dnbBjTKH6bPW6bJ37IHrOnZQwjuM4zpgzbIGuWxaAF6MgJ6alXEtCjg3KxyTfzyAOtJcTB9hdrK17d5aHq8N7jiaWdy39nrqOdbJuz6HJYI0YBKMOPLjimEYOvAJZ3DoJPZd2+H3YLCFrROrGVsUmVG5lF8EllMevQRQ0VqpNnphcz0pNuk0IKAu+GUXrZZn9wB8CbyfWN7NWZcht3rafj7wuZpBFagbVuUuS85mVeLXW091A52A6TwfezWDPxpKwW/sqt6u3IwXnDmRhbxcg5WrgGUSh8DUUhXErf5CV/ACyBjqO4zhrmNUQ6PYRwzU/I2yrhe+nIyvAKIe47oY0ghloImlhq69ELlYNZLE8Mmwb93t2lpe0fnyXopVsHk0IP0Rcu9SODAk2Zo0zgaJqMm9C4kFUX3/Z4dgLRMvBDMuTjNkms6D7voAY2KIVViZVE/gG8HNUdkdV/D5s0rD1dyJOyuvAmSxvVEIT5n6bohDwEFoLwxYN9K3hOl+ClFIg61VGs4BoxzVhwwLknEQcdwZd35UGv+llzeg8svCWo7tWYfe0H/hf+l+XlqNrrBEF3/S3nP4sdDWK47glerdIpDNIsfijPq7ZcRzHGRNWy0Jn/ChcwxuJC9DPWdUrGowMCXJVExt7f1/yvQ48gsEnNs5ksJMozKRWslmkMDCXsYzWFoUainyXBmmw/7yUOLEEJTQ/D0X7W2A0wp9nxIiW5ib6EIrucpaE3SIu5sC/ESMJlttbhgJkLCAL0gzLb6HLUDCojUiwXuk+IEMu4SBhPY1OWeYoFMnyFGRpqiPB/jLgK+F/zwjHWYfK3srPPBOMGoos+gokaOTIQreSXgrmFmreEnPhGvegtX4pZqV7LHH9d46UCHbN3ax7nEcWwfUU62qvUSfL1tWc5nG8VXAwd7t0HMdZo6y0QGcuOhbJK0NR9dJBai1aqlKBrlb6fl/gV5DbjbteVpNaO69JPpv1Z7WjBI4C08ilaz9RS5/WJ2tj9yBGfixbtHKipeZFybYDKB1It+vLLG/dcuWsSxUmh1C8DwvI8XHgV4nCXx0Fi/k0xbxjdo2bkJVuudugCRPHUHQ3TwXplSCn2A8v0hxan+T3c4CLUI7RHLW99P0jwCeAxxDXIh5A9W0fxZx3c8Drkdv9QWLZ98L25HO7qKu90OrZTyHPEfOs6Je7IIGu3I5+ipQyx7a5BsPc963ufA4FHUrHFEsjVEfulnZMTzLuOI6zRlktC90JaGB7F0UB52LgMDQQ3bg6lzYwpnE2IaOGJi/liGb2+RUomIXTTEZchwgS1k4LnxtordZyuPSNIjlab/kIWq873Qp8v80xMmJeuYwYECLlO6h9mvvXfjSJ70XYyIH/IQpSw6bdpDcDngDcnWgJMTfUnGJuvBzl6DpAFKiWc/2cTbbL7nZvAD7Jygh1C+H1XmJQlAbwPOSG+atUu66aNWgH8E1UL9K2Z9d+IPz/FFTWjbD9OooBotI1n70yS3Q5bNBfbrV9SJl4bPieA28jeoukWA4+UC69gxTXqvVCjgRfU5zkyFX6mXRvpU2tcxfS7OWxDVnzQV4wo2BZdxzHcZaR1XS5tPDm6eR0L/AeNFl4GuM3EOVofdOppe3tAjXUkFD3QeD6sO1Ai30niQ0UNdE2QemUrHqWOCGbS7YZKxkWfthYGpAcKQFOTn7blfxWNdGcI06E7ZVO3HM0wX0q0aVsJ3K57CfyrCkpLEn5MPkSclUECbHl+82IdSAnKlSOC++Wr8+sSFZmHyUKPMvNluQ8u+lu7eOg2JqxWdS+clQez0/2+SYS6spCZyoUm2WujLm2nkkUXD+O6lAtfE4DwPw73d932oZrSAi2YD6PoLc6lnqB/BtxTVtG67Q368N1nh3OdT+UhsGUd53qzEHgCKIyZRNR4WEWbehcFocTraIZCnxSFbm1Hl7z4X1SPRccx3EmgtUQ6K6lelJuC/Nz4DMrekXDZT1wG+LEpV2gBiNDLkSWgPkqVE6T7oKZuhGZ26VNTKaI9TedrLQKS78WMfc2wxITm5BibCcKc9A8ecyB/yRO8NPJez/C2HzFuYZFjqyIbyVe60uRtd8oX/OtgVuS/z8D+A/g0chlM73OGyi6B0J0VVuuSXENCViLaOK/HKTtwtrSf6L1lNOoLaX1IX1+56K8cXVaW2stjUYdWWcflPz/ahQoahG12xxZB2+h+/qRCnTW9mvh8/oW19Qtp1L0FGmFrXs8P3zfDtwZuaJ2shIeXjpOyhIxhUOnOjaNIrKaQvRRFfscQNb3TUSr6GpFEnUcx3FWgNUQ6GaQ29wMiu6YroWwgW4BDeDjZqEDDbJ/jyYZ6bZusLVN25HL6TdxoW4aTTrNxeiLyJJ0AAnOdYrR6ixPVrrtBmJS7nEnDYwCzS68ZQud7Wv7vxElDLck0hYJzybxdycmfe617pkgtAT8TnI9w14fukR1VEVQ3/FbyNJv50/3MevTr6KAKqnS4HQU/fNCls9V9FqarU3/ip7HQeC2LJ+FvpxQG5rrz92B/yYmwQaVxXdQ22r1HMuWzZeilAwnI7dGC7oDaov7kaWsl3phSgkTvqxf+AmDl5spFLsR6tK2Ya6fhxIF/1b3lKO6+8DSeY4k5ou7rM3/jSvQmsZWQugM8Cfoub2P8RxHHcdxnB5YDYFulrj2YQ/Na0rmUa6jcR6E0gl0N1gqh9sk2yZ5AXuGhNs5VCavJJbnnyf71ZF2vTwptUnWvYlrhH6CJtO7iVH4lsKrQTFR9Shrszu5Zs0Q3cY2IwvCP1F0T7O1ZOl7asH5J2KQin4FsXZuxsMgnVSfTXRD24DWDU0RLSkvQPn2LO+Yvc6maI2z5/5/0ETY3MBnw3/T6I39kibmhmJC6OWiymqdoYAZT6I4DmRI0Lc1lHWKrr7dYoL0+9G9LSKBbpHo3trt8TLkWrsOKbvWoXViVmbrq//W07WWBf92XIyEKvvPURTX4pUDEoGewcvQNT+89FtGrBN3RwqFdmVzBLGPqyIDnoue3eUoEukcazPgmOM4jsPqraGzwepylHTWsLQFW4muVeNmoboJaYobRItbJyxymbEHlcFOhhfBbVywiXaG3OHeSVwvZb8bNbRm8fPEYBb7kt/+lGh9ugiVsQkwH0EuZ7uIbm45mnCXJ8Cjsv4kR0mHQXWrG4tj2UJn4ektT1V6bFAb7MUVroqT6Cx4DkIDTY7vTbyvtyFB9kXE9U5WV0wpAMolZgJvWZCqVVzv3cP5MiTcXcRgyqbrULkvhGOa6+hyUrbMXYui65aFbqv/vw3cMdneT/TPDFmtrIwziu5/lnevV6oUBYM8jzpRYfTQimNXnf8VyML4ZOQtcEyH/5lFuLxu1X47F3gd3QmVv0Tr5jZ2cc516BmYu7EpL1ywcxzHWWOshkCXA18lDm7PpjgwjbNlDiTMbUb3dml439z2H8Imk+MmwA6LE8N7RszLdS7VbmIp6YQRorbeEhpnFfuZRapG0TXwA8iCYJNZW4s2SkJ1O0FpCgl6dWTBAAkvVq9qKBCF3e+FyW/nh/99kP4F2PnkvBcTBenlqNN2zKcSn/Elye+mGLB9L0MC8N2QW2XVZDhHEQjrxPZo5bk9fL83ioxp1rteyqqGlA927GdSVB4Mq+9LrY77iELEfqS8WKJZsMhRpM3zURldXfqtX6x+LSEh5A/D9rcht0675//t4XimiNgT/v8i+q+zGYrIWUOWyJPb7/7//3MI8GHg8cR7mKK91axKoCsLcZ3K+gBwPHH9YKsgLiknJOe4vN2OjuM4zniyGgLdjUjja4va15oAY8JbL1r3I5DFIUdrnAzLC7XWymhTxeeNwCOJ93sZ3blA2dqXb4TPb0LllgZNMQuoHduCfqRC3iJwT+AlyX5fYvxSSkwDt6JoNXgtMZpquvZua/icE6NZtlsn1YlU+M6T13KQEyenGXKZfTDN7rf2fnrF9jIZylsHEvQh5vIqHw9ipEwLrAKdrR9W55ZQqoB0ndrdGO76uWmUTN1cbiEKLA3gv5J9M5Q8+xHh/WoGf3YN5GVh5zbLuwk2F4XtaTCfKnJkCQOt7/shchW18WPQMpumO8GoTNrHn0pUnuwAfoye8aEU683dk++pwmMOuQp3s4YO1L+dRueov3adzwnn3Y/q9rgrTh3HcZyE1RDoGmjQehkaYP6RmPwXotYVxlOQsUltOthfgxbtGwdpXvdhE50XIi32OiSE5BRD7e9mdFwAe8EsEVY+28P7NErX8FUk1OXAm+ldsNiFwtKbZa6MCWnnI+vAAvDPyTk/ip5JasVbzjVg/WLlVqN5EjoF3Im4/sm4giigGOWy/SXR8jQo+4huhcvRhq3+31A6ficXtG4oC21LqG4eRyxvc99cQInKTbDsJMzNEYXcBs1Kn2FOsjM04V9P0T3P3MBztPZrKdk/tSA1GGwdb058PjlR0VV2mYbuXIcXSu+noXtboD9hLMUsiJs67VjBVahPvifRQrcZuZd+F7g/umdL4l5OFfJuYoqB3XQnoM0SLXRVpPXoBxQDyTiO4zhrkNXMQ2cTiJ+iZMi2AH+cmUKJ0aeIrpblSdsBtID+KorJx42NaN0YRHeiqxhP4bYTh6IJT43ipNPqxlvQhKeVtbNVLiyj0wTfJjkZssI0UJvYk+wzhSZ6/SQvXkk6WcNSS2+OIrHeJ3yvA59iOPmqriM+szpS1ixHu15A61XfgYKe2KTY6NZCXi6zcp3ZgCxCv0EUlLcl+60jKik6CXTm0mmBoCxoT6/X3IkFooW6k4X/O+i+zIJdR9a5m9v8pxsyYkj98vnLCod+6kfqvTDImjBbl1pD6xm72d+oA3egGEQpQ9bx3aju3JPYx6RurOnxcqJlfZbOQZnmaF1X6sDvIyXip1EEVbsu0PgzqADsOI7jjBirKdClQRh+n6il3URcxN1NwtZRYhq4PdVrJSAmeX0CCtjx9ygJ7ydL+y93kITVINV+W0TJDD37VHucISH2BeF7q7I4iDTgECdFdeRGZhMoC/xg2Lqq+1UcO91vM1Iy3ANZ8apyPa0G6frCNFBMTrQ62n2kltzjkavVv4fv1xDdLN8cPu9n8LZm67Wy5LXc7Ef3MIUmq/vRRPqrxOfbytqaBl5aQvXpqRX7mmvfMO6rHs6zgShQg/riDyMFx6AC8Hw4/oPQtV5IzA24nXj9i+iZ/yVy+4bYjgbFoq1+J5zvKFSOP0Bt8KXE3Hcf7eKcJrRlqC+xqKaLyEI6jHV+9rnq+dr1fTPZ/81h27nEOvKd5D8zFOtLjp79wfDbIrovO3aVgqqbay8rBd6TfC7jVjrHcZw1yGpGuXxf+FxDeaos/HyduNB8G0V3w3FgCzHCWFkTugv4u+T7fZAAWKUxtQnGDHKjs6AB4yTglslQQIqyIFWeZHSaNB9Aa4MsQEIDTY6mkXWzET7vRgJQWr5VrkcHaXbVPD68/7LNdawGJ6PrPDHZlhGDTTwb1ZdbEaMK7iS6XM6hybRZN24hpigYFvXS+3KRI6tHqiw4GvUblmIgRwFaTiNaxKeS//8Psa3torou2HHMkgPqv/YjDwM7bidLkVm91gFvILo/7gjvw1TkbCa2IxPSyvX+K0TXy8+iBOz9CBVlDieOLXvD59cgd3LQmr5LiOV6I91HbDVX/Y+iNWfDXKe5IxzTIlIaddR+nkhcL2nrcNO+yhR5ZjU8iqKg+AvUd/0usc7eDgncpsTsBjvmHrSm8NE0C3XpfhDHjeVKXO84juOsIqNgobNBcS34+JetQSl1FA48tRq1msAtomAcr0Ta84MoqEOd6N41yPqW1SQtl35dpRooFP23aE4xkKN0BI9Fk/spovVhO/AvFMt9AUW1/DPg96iug9f1eZ3DxlxDbdL418RgB3bdhwE/QxPkVxEnl2eGz18J263chu3KW0dCpQnaK+FGbUJIuqbopciyaoEg7gQ8Lnw/LNnPJug5sso+PxznOOQaaXyBaBW1QByvRIJiuuayVXlmKKql9XPlNVDDsoyl2LUsImvSOiT423WWLVPDmOybZbyGcj/WkJIlQ3XuuxQj+nZT/8xTI00oX0c57pYz8A5EK+CV6H6snV1GDOJUQ8L6M8NvdeRO20DeFyDL5NVIiM/D9joKitJAbbSb/jBHaQveG877aKr7rBwJzlavnofKsIELdY7jOGuO1RTobE2SRXyroioh7ihi62rOIU7YXkZz+VoUwXVoIngcMVJeyhSaLNg6mAbwK2hi+nXGbz3dLJqs3CrZZu5J3WjmQZMqyyF3EYpouIFqgc4ENpu42ET5FqJ7lOWcypEL7MeQsFR2l62jifwoTILKLlytBIByHrbyhM8mwcuVj+r6ZTpuFbvRRBtkib0/ReucMYvqUINmQYZk20LyfUd4/zDRvZfS/r3QSmG1FVmc/pjhCnVfTM77XWQVsrphrrYQ2+cwLLWzqL2kOd1SZZ2V23eSz92sT7V+czE5zhZ660M6kdEchfKzyDX5dKJwdkK4lvXh/fE0exVMo7V0dpwriRFOy5a9a3u4RrMqp9dcRR1ZkW1drFkUF1vs7ziO44wxqynQgQb/DOVrM8tVOX/YqJMhYcsm2+n2MluRW5e5HmZoMvJqoqBh/z29dIwHocnr14d25SuPTaptUtFt/VtA5fNAonY+I07QCe82WbdJ8QzFdZg7UOS9GeDXiJOrGhKwX4GsW39JDOpxOitjZeqGGeK1TKO0Cs+ndVuxsrIIgxZ8YbnWpppwnVEUjJYbqwM5cAGylhwKPAy1r1QIALm+fQJZ2U4M+0wj90lbd5ZyODE3HeF47wr72ZpZUzS0YjY5fzk6YY7SbQxLaZABD0+u6z3I/dYi65rL+6MZbj+7GQlzryBGj70k+b2OAuYcQ4z6+6Mujpumw3gl0d14ieG4iBrfR/2CkaGUKCYY70H1+jhkjavytLD+bTvxed9MLPtyX9JPjsvUutnKOvdptFY4R4L8E8K1/zEu1DmO46w5VlugMzecXy1tuyeyRqVa8lHDkvdm4fMMcf1ceZDdS/NAnt7TfuTy9+rkv/Z+NZq4w/hGJ7Mk3u8nRrO8K7qfcvqGMjvD+5ORm1FqUXkhMTn2T1E5NtBEr061hdcmQi8i5sWCOPm9C8XnNyrCHOjeHo/K8kNoctZuQn53FHTm6cl+y2WVMzKikFm2BK0EdeSKOwu8OGxrIOHts+H7PmLusu+hia615wvRtZuyCeSi+XTgI6js1xOtJFOo7tVRRMFW92pr+awtpJPxWyOl1jEMR9DeRHMwjlZYexmUGVSGv4YsWDPhvN9L9llCVq4/INaPC+jNolu2jE4znHuooxyU5aA46ecFVHeupdpSvoQ8MxaTazwNuUVbbsyTURu2e/kyva2fA1krTQGYjhkpB5CAvSf5fZjCr+M4jjNCrHbagjOI7jhzxIHn9WhwPYgmVjetxgV2wQy6vrKgVR5gN6FBf444+H8x+f1EWmOabJskLBEnLzaJSkndl1KBZrWDqRxDMQJir2sm03U/C0jQT4UTs7R1K7DUgb9Bk+lzSteSJ/tYZNJRwcrgXsSIl62ooRQZZfdCWN41mKtlYU/re9m9bCF5tRNwrHy/Go5nwSt+WdrvduF9L/F+T6JokSqzE6U/WE+zlW45I9seQXMf9TjUj1xMLJdhUBaGHklz2yq7ufbKDtTvbUMW9CUkEA+qOKiqsw3k0ltHbek7yBJrFttFlIw9R5Y765utPzqL2NcdQNbhVJjvx233zB7+m5bxEkW3VcdxHGeNMAoWuqpAAunkfZTZhq7VInTay4IvlEm3nZ5ss+ANrf7zGCQQ3YOYbPwCoivSDHGC2O9EYTlZRwwwYZOZ9PraTf5tPwuxbmtBdhHX/Gyi2hpnE9X0t3LU1E1ELfYcCpLxnnCOdzE6Wm1z6T0HCQSpi6/lKTw2fLcJ5Fnh/fywfZ7hR7QcFbYnn69Ek9erwvfDKbrt7aVZgNmXvM8hN7kp5KrYyTJezoFXxTxSHrwZPR8L2W8cZHgT7bJQVU5m/drwuYEElH0M3l9sSc6TU3S/NaZR3rZ/Q88EZEXqVCfTZ1VWRAxLcXAI8DmalWBVgm4dWRozNAb8Rtjvxcn+m5BSMi2THN3/oFgew9T9HJqfcx2VtfVhVzBa44LjOI4zJFZboAMNMH+NXHVsYDqI3AzraOAfRQvdzRSjrt2bogWqTIaiKP4Ncg1MXf3sdRVx4nlM8t8ZtB7IrAHTaMIwjSZSZYHmOhTOehTI0BpD0LqdGor2eXHy+xlUl9l+lFz8RuKk05Lz9jIx6db6cAOyzOxC5T8XXp0S/a4UW6muX8ch17bno/QW/0EMwPBC4I3E8rIgPMNytUuxSIQmIK/G5HGWqCxJrbX7w3sj+dyK/eEYG1EbO5XmNbLG9ajcTdHQiXVEYe7tyf/+gugGOggzRKtYhlwA/4Tmyb4xz2DPKUOC7xxSTG1ErtEWfdWw4By/RgxwdCnNlsoqWlmTh6VsuRWKQnkonQXEBdTfplbGjOZAPNehe6sTrYcfDPta+7Ay6QXLdWourU9FVr8a8KlwzkXkkl0HfphctwtzjuM4a5TVFuj2oYFtP8XcVXekuEZt1LFBPbWKlMnQWsHTUHCP1KJgA20r18sMWefOIwb/OK70+72Jk+gvht/nkQC02gO5lccMCp996+S3a0r7msbZ7mMRCfg7iCHmh03qkpQGHBhFWl1bhurVHSjWvxqaaNv/bJ3XsNzURgFbMzaF1m9ZNNTvoLZyPHHyf2XYByS4LxAtnhCFeIjCRpq3rty216PAHt245V5PFNrqyD3z2wzPcpIBd0P9+j5iLkzr5w+i526T+wMotcePezyPucdnSECbCp83EtdPpgJ9HSmzrkd9e8bgwthepOiBGAypX2ZQn1RezzsTjl21BjrFBLoNxABEVgYXo/LZDvwWsrC/BD2DnX1c99FEi3EN+ACxrM9DyrKtyfUu95pZx3EcZwRY7Tx0V6EBcAppdKfC6zTi2p8cWUhGbeJp0fPM/fG+tI46ZmRIG2wJff8QrcX5F6QdPrHN/08G/k/4nBODTfyI4po0G8hvH96PR9abfqKpDRNbs2apC8zqlVrn6mhCeGT4bnnMvorWMKVC7N4Wn3tlN9HqB6NXz4xFVOe+g551OiG2tpRRTLINqldnhP/ByihIqtbsLRfm6mcBbjJi3kCzDB+keUK+mZj4+bI2x9+Ach5mwN9SjG5obeqQcPwl2k+gDwB3RlbEOWL/tp7hrWk0YcmUE5Yo/QDKxZda8AY5xzOI5b0r2Z4Kc+8L283979vEhOc5Cgayj/7X7w3LQtcpPU5ZoDsKPa8MWcT/gpi+4O5EN+9fJVpGbyb20/bsT0UBfHppJ/Zf0DNO1yI/gOiW7jiO40wQq22hSwfyOrqexxIH/M8yHoNTHSVrrqE8WJ0mSzbIvxPd54vRxLsTtmYvtWLNolDelrD2y0hz/eeoPOvEhLeryf3QNZYpu2XdRLTg1dFk8Zfo3srr34ZF1YRqVNwsjQYSPNahclyg6EbXyip8NzRpXEezi+VyuEWagiP9vpzYGlMriyXkyliuV8+imHrA3lP3y1QgOYiiW/4DMaG47WPYvd0zHLublCK/JLbL5SBHOedyZB36AGo3NRSZ82QGF7gtAmgNrecyb4PtFJUzOVHwewrq586jWJ6DtLOVCPSUIyWjKUrs/XJkKTOFZIYE8/sQc/BtLB0nfYf+ohbnKPUDyLL6OFRPIT6T1Q6A5TiO46wwqy3QWZ4wiINiqzVoo04/bno2qXwrcXA/SHUo/6oJ4CzwjxRdEU9E6yq+SWeL4UpgQuYjS9u3lL7XUWj4JaIr0hcZbffHlWYKCec1VKb/h6Krb47yT6XMoKh4xyJh4mPI4kT4z5cZfvk2wrWuVECZdD3qFM0RVC1lRpk68FyiIPb7FJPSn0VMs1EmJ0Y77KXPWkCWvT0UA7UMixxZkAAejNZTGjVUHy5G/U2OUi70Qw2tz0vv2z5/H63bvJQo0NkzWUQC5qgJHXvRNR5GMV/fe1FZZck2Yx3wcoqKlQ0UxzVQXXo9xXyIg/Rr1q/nyAp4MaqnG5CAvBWtB3Ycx3EmhNUW6FKuRAu5Tav5fbRuatQGfqOBFtIfThy8Lb9Ur9gC968Cv4Pc51Jr1gKaGP2AOHncHraVrV42eUoFwO1oArlagpG5XFlQl7JboLEx7LeP6Lo2rrn3lgubWF5IdMG17YeiNTQ22UsFHasXZxEVAKk1ZxDXt/L1nYae2xIK+b5c9W4KtT+7t5fQWriqSgtQQ1byfwnf30CczC8SFQpVx9uPoofeSLy/XifRw04dYesGLdl5Dbn1GTW0bs8sivafXsjC8dMIjlVUBYmxtZuj1qffFq0zBSmT9hD71RpSuIGu/1XIa2A7MbfcTuQ9YfteG45p3hRPR67mliNxHrlg2jF7YSEc97nh/NMoJ93r0DhyWLi+oxlOkB3HcRxnDBgFgW4meT+eKBR9OmyfRhrHnSt9YV1wFNKypyG6P4GEsl4tYxlah/cDmi10G9D9ry/t32rtxwJyXb0XwwlAMChzKFrls2g/CZwhul2CJqOXLOuVjR8mYJxLsY6ZtcesIH9KdLtNseiXNpHciurWLMMLoJBaNJYTs+o/hBjYpJuoiSmHEMPmp+3LIhR+lphWBFRWC0igOTr5z02MhqBia+dMoDuPKMCbFeoookDXTVJvu3c7TquIn8bW8H44UsyZgulbNOfNHBWsPaR9ZYYs4uZGvJ+43vbhxLWsqfJshmKE4hrwR+EYrwvbhtHO7Pk+kWLgGzun4ziOM0GstkB3M3HyVxZOMqT9tjUu9vsoTJrKHB3e2wlPVZrY8qSonetWWZh7ZsW+qQbcXPBGxV2xU4TKGvA2FCjmzmFbHVlpU0YpWfpKkyOrULsJW44081dTTHK8C4Xif334/hrixN8spsOYaKZBG1aq7qWBOEzI64WyAiVH/c5fIKXCw4mBRupIYC67QF/b4zmXixy5W1u+wtSCvwkJr7+G7i9H112Vh24O9c1HEAOZGN2ku/gFKiOzbjWQ6+EokqF1yHaPM6XfQJavWvK71bkLkGX3cqpd5dNjLDB4PVlAwW3SY5fr+zisO3ccx3GGyGoLdK0wl5Kno/U/ozxAZSgUv5XlETRbCXLk1mXRCC3FwFG0TlXQzXlTDqJ8U/uBv0NuVbbPKKQugGJQCvueapdngb8Kn8296RAGz5W1ljAhvVyWhG1vRqkJjqUaE3y+QXSLMyFsGEFS0qAog4aT70SaemERuRtegtaQVik7jKrAJun9n4cCeHwZlfFBNOH/AdGNLS/99+uMTh0tB+NI+/mjkVD/MnQvltJhF8V2toHYT2XAK4jl85IO56+htb2PQha6XcRE4qPI5eG91/XbFsDrscjSubnFftZev8bgdeRa4BFoicI6mhWIB5D75wIru47VcRzHWUVGQaCz5NybKE5SzWpnIaNnGf6ak0FZCC+zMmZIo1+17isvvUCDs+VlAq3BOTJ8XiLmNurEInLBs9DpJyfHzFn9lAV7kdDwMOA9RBesB6I1X68h1kV7/jbBvhe6vwuI5TZq9WClyVHZfZVieb0VlethRCuSTcLTiWQN+Ez4/aHJfoOGzzdLX4baxY1t9h0WORJiaxRzMU6hdmhrR7+IFBtHEQW+HAXvqCOr1nOS7SdRdE+18ryUOEm+NLxXWbhWG7vmc4FXo/ZlfcIG5P730vD5DBSdsY4CbPwU3fd2YvRdC2qyDbnDd3Lrq6H6ZIqDfoOvrBSW7LxKALqZmLtvKezzUeBJxH6/VbJ6U3DY2uBBWaKY6L6sPLRcn3Xgc0jB4UKd4zjOGme1BbocDTi3R5PBpwMfoThJHWUsn1TqglNFnZg8OLWC7Edh5ZeAu6C1JzapmA/H/Uuq18qlZbNInHSArFr2uRv3qJVgN0oiXkf3uIju85U018NUADkU5as6nDghmmOw3HPjztk0R3IElc9GJNiA8rBZzjFTNth/aug5nEKcrF7J4MJyhtx9rZ6bZXq5yNHarAzlAMtQRMt7ULSYpEKZ5UczZZFZUFIB2NbQ2X/tdRPjEWzifGI9eDW6r5cSrXcbkCBsCrUcCX/TxOAeG1A5lN2eq4Q5KysTMBaT76PuGl0H/pgYIfXBFNvWIcQAOU9AaTH2E+95CfghUhZUjQHDdH23IECWs7WKjGphz3Ecx1mjrLZAB8V1PqmWMyeu90mjIo5acJQaxQSyVa6QpyDXURvUvxfe7Z5PQs8ideH6Eiqb19Ms0OXIHczyss2jNABVZdNgdEJY15Eb1snouk6nWpj7B1SOxyEL5nkreI2jzi6Ka8asvi2herAx+c2EFLMyvRB4ESpTm+zNEHOT3QWFYbfJeL/06ro2KDZhfjsS9u8B3JWiQGY5DQ8jRuA0F7ifoKiEb0eTdyu/RxHzpNnaxFFXMoH6gYwo0FmQoSchd2wT6topUkxJZdadG5DyKd3XnnE9nCtHfWHqHTAu1qHU1bTV7+k958R1zJYWo1WdH4Yrc/lawIOfOI7jOIFREOhAloWL0AD1fTSpqgPvQpanTYzuRMqEuXbBTP6X6N72y/B9Hc0R38w1ch9aAwday/M2mpNIn0W0+qWL8dNyqgPXMVplZ0ElQBPL8kRpAQker0VlNIMsdFsoWgrmGF5UxnHColnmaL3h8ylOMlOmgS+gyfYm1K72osn5FEov8BYk3LwPlXWN/gW6eYqT15WudznwIyR4fS1ciyk5LCjP55AraANZVExZshuVzQxFBdLPlveSlxVrW0egsjgCCXRPprnOLKC0MfNEl2iz4pbTjOQobUYqvDVQvfkaxfx64yLQge73g1QLShnRmns8Sur9JaLQ28oadjWy+L1oSNeYA38WrvFyqscdWwpwM+NV/o7jOE6fjJJAN4cGqVej9Qk1pDn/AjFARo4mXKPiwlPOJVQVbczW4aSYS1fqgpkeYz/FPE+tJhjphNmiW36daJm4gdER5tJnlqN7eh4KZLEOrePJkIZ8V9h2ObqvU1AQh/JxloOqgBmjxj50nfNEl7kG8G2Kuekgrvsp/zcL280yfDoq208Bv0n/1qgc1UErx8NZfvdYU4TMJt+tnth7VXj+VmtLW+VJHCfsOdTQ83wKsc/4AFH4/ULY/8lIqJ1G/ccJSKlSQ2H4FykK6q0CVe1BdaxVSpVRp1Vf+1LietNbIc+LKRQJ1VJmtGKY1uop2ie8dxzHcSaQURHoQAPkttK29WjgSl0xR0mggyhsZhRDX9dR8IUPUFwTeDlFramtAboBWQy2EC1+7QbsHPh34EHhu+Wfykv7jBp7kNXwAUShonydZnHcjqxy61CZ9JIrrVV6g1bbzXXKrA45ChBRR2HC7ZmlwskoreOrAf8VPr+Z4uT7OyhU/UZaKx/sWWxEwp3V1X6soPsoWmlWimEFyxk1t+5+MeHdFEf2zL8Xtv0HWsNc7m/WEwOfbCcqny5EUXp/TnTpLAt3lqB+lProbrCokK36zFbr1rpxL86A+6H+elBuQOW+vuK8i+j5GGulHjuO4zgdGCWBziYA5tpik4wHouS+G8L2bTQv0l8NLOCCTZrWE60lEAMLmDCXhlgH3W9ZIDDttrk8GWn0z2vQep8a8Elk5TLt+edL/xvFaJCbiGuYysJFlevS9rD9H5CgcZBqIbBbMmIyeDvGFErq/gpimziB6Eb2JpQK4Bhi0mRbl7jSQl0aUbFsFbC1cjaJP0gMBnI+Wqt5Prrfuyb/y1DZXpj8vx/S+rYaAp1TxOrmW5GFzvqQRWRlejTNlp6DqN5vQJZx+y1DdeYuyD23jvKvXYzqzDrkhjiOzCAPkQxZqE+jWCaL4ftb0H0/P/ktVZyU202OgqVYsJ1hBCmZRsGO1lOMpryAArtYgKNRTvXjOI7jDJl+BbrlTO68iHLQvZco1G1Gk4cXM3jAhmFiA2oG/C7VE2wbWBeRMHNLh2POh9dvJuc4FgkUNSTMpcefQROwDAkbl/R2C6vCErrOz6B7eBQSdqdRJMbyxMeiz9VQAA8r01aCfVlrbsLFocQIjCDh5m7AE8O2NH+XTX7TcO+UPm9i5QU6s5TMopxi5TUyGRLyfwsJcKB1qWXX3kvDPikvREFDbJ+q9BvdMonrG0eV/UhgPxQlSTfKdeIAskbnaK1hmanSf0xwsP+Pkot3P1QFLzFB6XdQX1BWzP1p+O2NFN3k7Xj3IkZVPQ25RQ9aRq2sgqbYy4F/G8J5HMdxnDGhH4HOop/Z5w1o4BjUGpSjgfJ+NK/fyRjNNRmno0lMqxDydeBZFEOjd0sdaY3vSmtrRw14Z/icoxQHOxiPgTxHQuqtiJPMBkUrZ0oNuQ7WgaehSeqVNN9rDXgIiipqE7QLkab8rLCPWRvugyyA7SxS6YR1VEgD4VQlGN+I1vY00IT0Eah9fh1ZGVO34HRy+EBkJba1ZaehXHejdv9O79yC6kw5N+HLUUj+rWG/05FL9FtRkBSrWyag14F3h+PNofoEo6Vo65UppBx5KEUrt9EgtgHL9UnY5xTiusM3orW+ZQXQnvD7IAqSXqlaM+o4juOsUfoR6DLgHBQxDTTQnZ/8vjPZ3is5stxkKH/Vb4XPZyAh738ZnRxQ1xInww+hWSiYQ4P4zvDei8A7hRKMTxGf0SLVC/bLibhrtE5yOwqUg6McmXwGCW1nUO2eZPc6gwSxe4Tvl6P1h7NoQmoC9hXh8yeIa8RehQSVNM3ENLL8QVF4rgOPAX6A3Jws+MglrG70uD3IOlhHebH+nhjF0bB60yAqF5aA/yHW1dORRfS4FucZZAI6bmuoJoGbkJu21XHLoZkqm6yd3AQ8PmyzZNq70HPdj/rhA0Th35Qx48oriH3CV5Bi0dr7r6C10HWk4EgVc2kbqRrz8uQ/w1KM/AwpbQ5QjFZqY427WzqO40wY/bpcll0+MuC3iZrfLwFfpr8BbAsaJD+G3A4zms83amS0nhQfRRzMv9zl8aaJocYJ/38RzekLUnIUTvs9yFJnk6tRWG+YkrrizaHrfnv4vglNME+ltUW2Fva3SH1QrCNla2m6rbxmz/5zGtVtoYaCQ9SRG7AJRbegcOSrbbky99wHo7qV1o10bc9W5HaZI5ev24ffLHl2VTnatlFXEDi9kRPz0t2E+lvbXt7PnvtVqJ6lQvpaEthnKY4xOTHAkJXVz4m5DFOWiKlA0nQPaR9kFjo79iDUkaBtilVbA/kQNAZbFNMq91HHcRxnjdKPQFd2/8vR2ox0QDQXyWl6G/hvRmt4bBI+6gPSAWK6gCrS6HLLeS85Mb2D5Y4yRi0qaMpeNKFMhY9OViHLk5VOmNIoffZqhNczS/seTaxbD6FYb6tILaCEfefCa7WE5flwbpuMV6XF+DjRdXmJGCE0taKcEN6vAh5GVErUgdeFfc+guGZoFAPtON1R1Q+YR8WuZFvZ5XDU++FhYK6oIMu1pa7IURTiK5GAeweKXiiXIIWJRcf9KGo35xADfC3HtYL6/N3E9v8F1OZPRx4H72Yynp3jOM7E049AlxM1kiDXw6ow+0eF9730NwmsA68HzkWT/Ck0id6AknOPAl9E1/Y1onuokQP/CPw6cb1YL6QDcQ2Fom9lnQNNNsZt8DbBZBNKpG6hw9u5M5pCoRxpriyUNZDwllr6MuA5qG79IVoz043ldwkFiTg1fF+NYCidSNfS5Sj64E/C93J5miANUUB+HFHQ/Z9k3xk0Yd3N6CoGnMGpstBNCnXgSUh5sRF5OZT7hduivH1lLOJuqrgru55uRRbyYVJDaSdSV+tfRxGh7Vq2UH3NjuM4zhqjX5fLBYoLw/+dGCFwJ/CRZN9NwE/pbn3FMUTrkrluPhRNKmfQpLoO3J/VXSeQETWyNeCfkaBZhbnh9BL1LwcuIIaTvxfthbkF4NmojO+KLKZ1NHEfZQsdqFxuRgJdL7SKPGk0WmzPUF19J+3dV9P9N6B1NZ9CwvsoTHbn0fPNULt5GLEdZmht3QuJ7XKOWAerguykCpkacsus0zr5tuOsFeZRuoY6GhNtHZqtHWzX3i0i6H2SbUtEi5+NU8OOADqNArKk1FCAqW+Fc68v/8lxHMdZm/Qj0O1DQShAg8YsRRe41O3NrHRHozUIxu6K42ZIk3kTGkSvCt+/F67zrrQXalaa9D6rBs4MhcPPgQ8il6ZeBvRWGvMGzevLZlCEtScQJyQP7eFcq42tpYM4GUqfdVUkx05MES1qZcw1tdVv54f3XShx+xbknvgCZL0aRlTXYXADStBukWf/Gyk7MhTM5cXEdlll9dwd/ruRGHQnQxFCtyMlgVki56hut46zFjAl2lEoJyXAL5AyzX6H6mTdB1HKghOI0UK/ROwjzHtiJfqMGvBq1Gd+mc4eD47jOM4aoF8L3V5keTsNrdVJJ8czKG/PEjEyYB3lGmtnVUvXTq1HkcFuT5yQ7qCYM2k12UrRmtEKc8H5JP1H/ZxH5faysG0RJbgtuxL+bnJNU6jsUyF6VLEoe18kRqo0a5NZN59LDAgzaICcHJXfcynmnbMofXnyuolinc2QtXOB0RDooHWUvXUop9jtwvcl5IJZXgu3CSWLToPupGtYb06O6YEWnLVMTrNFOnWVbKfQWAz7msBX9ooYZrvp1AeOehAxx3EcZ8j0I9DNJZ+naRZothBzE12dbD8GDYhVA1tGFP4gWlDSNUHfQKkMVjsv2ObwbovRLyJe5zUUE3+bYHDFAOezkPxHEK2hB5EAUk5ia8ygROy3Q4lvxwGbTM0ji66tY8mBG4G7h/0ejTTQ3dbdKmvfzcjydn74zZIFWxARUx400DrOt6MyHcVw4FXrB6HoEm1sQkJ+uobOWESTUNt/Aa3HOQIJfAAnIsuDC3WOU01eeh82GfAUisqoMp66wHEcZ8Lo10IHEirK+YtSt8uUDLmx1NEkcTb8H6Jbpq31WkL55tIBMQf+hmhVWM0J5abkczk33G2J6y6WUAS0YeTNSy1GOVq8X0OBL1pZCNehcj8euGwI17CclK1dOUq9MEcMKf5RovXoF0TBupWCAFTf7ooUAWbteyhygbqF4rpOWyuTvqbQ83sOUeN+GNENcTOru8YsR2v67oas2iegIEVTwI+JShGLZnkSil6ZWiKOJIaofwExUEyO3DengNcSrZP3CfuO8rpMxxkWvbgZr0SbOAm16TPQWPpIimPAfuAPwvv3cHdLx3GciWAQgS5HbnGnIOvaNuA1xMngOoo5jtI0BNvDZ1v7cyjRdWwfcCxaH3TH5P93QgPUKNAuXPxlRIHg80joO4W47rBXbG1HygaUXNbOv0Sz652V9TSjHxglxa4zFazMBTAt7z3EaI5ppLcMOIuiUJdiFt5aONc0cd2evT6EhHNTNuwnCn+2tm5UaAB3RnXidkRX3NsA51FMaWGBGnJiOV+ChFuI+awa4Xer59ZOp5HQ9wbGpz45zlrD+sQ68G9IqLN2fT4xv+QMw1EoOo7jOCNOv0FRUupowmvrvJaQNeXzyHKQoQHmocBnaA6eAlEYaaB1PkeEY14Stl8ejjtD9aL05WamxWcoCh0ZCsTxfVROpxJdBu+ABIV+19KBrINbkTVmQ/LbZcgSlSMB8s/C+2q7p3bDAs1latajvUgYTi3BlD5Xrau0cqiX9k//dwAJLOZC3EDPCdQujiAKjZcB92O81pCl7evhxHDmx6B7MMuDWSYPRcLcpai9Xk+s16kbmUXIHCclgeOsJS4iRgWuExV+OUqPMy59lOM4jjMkBrHQGfuAbxIDheRoMvxPKGjKFBLYTkOT81kkqC0h97DyGqc7hPdnh/dtRDdGWN1J5BRF4cMsROYCY1YMkDAwTbzujBgAZBDsHFZuGbJoXo9SHOQowqFN5q8d8HwrQatnuoDqyjRw72T7oeH7qcidsGwpfRtyEzRB0P67QNRc25q4X1Ad4OSG5LMFbUm/jyJ1Yv0rp3UwwdfW0VVRjohp31+BytC+b2PwtaGO4/TObtSG/xW1x4dSVLjY5xuQ4u+mlb5Ax3EcZ+UZhkAHsqZ9jOL6sv3AnwCPR8KcBVD5I+KgUweeDHyYuMbpUUT//yVkSUmFqNUS6GbQRBbiGqr9xPVs6QR6gebF8cMUAuooOMj7gVuHbQ2UcN3KygZ3i8o4rqRr24zrUO6nz1EdEKS8f/n+uymTKqvfqGJ5tJ4HPALVx4ckv9eJAYU2I4EutbD9ECkDIFr2nkEUBP8i/GYWuwegpMaO46ws+9A4uwO1xQdSdKVuFXjMcRzHWcMMQ6BLrRuHh/ctRD/+T6DoeBakoxxSeR3N66NM+GsQhSdKn1eSKrdAo3w/deAPKa7rOkB03xuENBjH0RTXzWXA49DEfh+yHFa5I64Vljua3LiQKg8OIMFsHapvlk/PLJWdyupSonIlrdPvCcf7UDjGdNM/HcdZKdJlB88P7yeF9zTgkeM4jjMhDMtCZ1go/y0UXT1+jxhw4RyK6QhSdzCbcE4RwzLPMzo5vyBeywLRqghFgdQm2akl8nKGL3zUUTlnSIh7HgqxnyNXxB20FkSdtUEOfD18tjo4TWtBbpHq9rSELJ9VOaxMwEvb6Ti48jrOWsfGn0lXbDmO40w0wxbooFk4s2hcDZQ/7HVIqLNJ4/2AC8PnUQ7iMY8EJCNDFskTkNvjN4gCnq0PvJTlsyTVgRejxfEWar48Eb+5/CdnTWIa+Y0U3a+mUcAE+/xTYoTO1OW0gerqJpoTqRt1tI7QJ5COM3rs6LyL4ziOs1ZZLoHuovA6CjgTTQxtLdQSxclghlxIcuCTyT7GKFnnUsyl0hJVn5n89mNinr5hsze8LkfBZ86gOInfl5z3kOQ/ztrnjsBvITesKss3tK6TDVSPTkEuvRlSvBya/G+UFS6O4ziO4zgTyXIIdBAnfXtQuHRjK82h381SsEi01BmjKswZtrYuDQazj5W57hxZZP4JBbyw67ml5T+cScBy6ZXbmQl2N9BaKLOUJEcSLetVFrnVSB3iOI7jOI7jVDDVaDQ67zV8UleuNAfd4ipcS7/MJZ+3JZ+vYHkFuvRcJgzPJtvM/S4VMn0CPhmcGN6tfc0iQayBXLLMSt4tZRdet845juM4juOMGMtloetENy5go45ZM+ba7rUyzFOMbLZAUaBzJoNyXrg0D2I/mptxbZuO4ziO4zgTw2oJdGuJeYpr1FbSTXR3m9/cKucsdd7FcRzHcRzHGWdWy+XScRzHcRzHcRzHGRBPEOw4juM4juM4jjOmuEDnOI7jOI7jOI4zprhA5ziO4ziO4ziOM6a4QOc4juM4juM4jjOmuEDnOI7jOI7jOI4zprhA5ziO4ziO4ziOM6a4QOc4juM4juM4jjOmuEDnOI7jOI7jOI4zprhA5ziO4ziO4ziOM6a4QOc4juM4juM4jjOmuEDnOI7jOI7jOI4zprhA5ziO4ziO4ziOM6a4QOc4juM4juM4jjOmuEDnOI7jOI7jOI4zprhA5ziO4ziO4ziOM6a4QOc4juM4juM4jjOmuEDnOI7jOI7jOI4zprhA5ziO4ziO4ziOM6a4QOc4juM4juM4jjOmrBvisbLkcw7MJd/3DfE8juM4juOsPHMUx3qABTTmGwfDe47jOM7ksSr95CACXSqwTQHbw3sOXJb8lgEbwme78IUBzus4juM4TvfMJp9t7M6AeaRwzZNt9n5c+JwDM8n2M5L9bJLyL+H7meG3HLgYqIdzOI7jjDpj3U/2KtDZxc0AxxNdNheA9cl+xyX7HZNsvzy878SFOsdxHMdZKTJga/L5IcQx/QPh/W7AkcDZQA1NOF4XftsW3msUJzR5su8Dkt/uC7wbF+gcxxkfxraf7Fagy8LrBcmFXUBRWn1s8tv7wucZYGPYp07x5lygcxzHcdqRERWHdyKOOTvDey3ZN8fd/FpRA+5FLK9d4fPxwDnAy9EY/QfIo2YjxUnIdPLfGhrvZ4C7Is+ctwFvDf9L5wVHAT9frptyVg1vl85aZKz7yU4CnUmax4WLmQn/SSVNgKVwUbbtruHC7cbqwO8BjyO6Zb4Kb+SOM6mU19w6k015vcGRQAONJY8OvzeAtxPrSw14P3Hc+QDwTXzNdivSMt5S2m7j94uAU0r7Pqp0nGk0jpeP+Xj0HD4LLIb9TkGeOd7GxxNvl9X4+LV2Gdt+sp1AZ76hdiHrw+slRInUyIFPA48Jvz2eooaGcLEn09xBOMNnW/J5Z8u9HGdlSP3S51HfcBaxH7mI4vrafqz3m5PPe/s8hrM6HEGsD1ZXcuB8oqeHjRupInEmfLdtM2iM2oTqgBO5LbEMN4fPt1TsdzpxEmJ0O2bbfvPAFeHzEnouPukdP7xdCh+/Joex7ie7dbmsAe9AZkIT1Moain1ECdYq+gKSPheBeyb/zYGTgB0DXLszXGaSz7Oo8zVSoTDVWOwe4BzD7LBmSt/7PbaXwfJiioYjkN94OiCOG15XBidVFqZjh5FOGBvA3YGPIo+PXwfeRHFMITnGZmDPcl34mGHP+wpU1rdHZbcOTUoy4kR7U9O/u+MHxPY8g8b3BnBpn8frF2+Xg+Ptshofv/o/xzi0k7HvJzsJdDlFDUyVBFon+kjn4eKW0ALBtyKrXQ14A1Fjcy5wb9wVY1gckXy+YQjHy1AUnhn0LK8BDhCflUX/2U5vQrlpukwblQE3It/hQ5Ljd+uasZ6oJUnr6hKD1ysvg9ZsSD4fqPg91WhaZ5uhAElZxevW6FrrdL7vch9k5Vi+1xlWbkLkdaU3ZlCZnB6uwQZL0+ob70iu8dPAk4ljyM/C//4lfP8YcCVwNPFexnXiuFxkwLNQGaaT8ipsHDeWSr+lHAB+FT2fKeJkZwn4Iqs3xnu77I1JaZc+fhXxdlJkbPvJdgJdDnwlXMDGFvvUkd9oHT2gVLK/AkWCyVG+hXUUg6K46+XgbEPleFei1P/fDJ7fYkM43mHh++8g4XsYmijT+Mwg7YeZmf8K+CrdX3OG6ldqvr4nsRzei+plv3gZVHMi6tjtmv8TuCn5vZGcv8xpxA7SFETPAf4oXOepqMM3stLnDHhgcnzTmOaoQzwQjn+nsH1ni+sYNl5XeuNW4VpSN60bgX8iThyvJSqnykEVrC400GL1JTQOPZIYlMsVhUV2oXr6JGJ9TcvInv0l4b0BfC3Z54fJvunifXMZug0KlJYhK40d/wCrZ2nydtkbk9AuffxqxttJZBdj3E92Y6FLP5cLv568cuD7YftPiL6oPwW+gbQ6M+H1GuBP0MM2d821tGB2pUm1RQ8P26yT6BarTEcD90Md1tnhmIcSNVDnUMxBOEv34VY3URTqTQOSo472WFSx303rhj5LdBFItYamMLDXU4EPEV1/u8HLoDtmkIU9Qx2fsQ8NaJcA3wnn/W7y+3T4z8soloG9vxLd+5uREunuaJBJ13IAnIcGnLJSyMrWwgznxHIcdv/idaU/DgX+jHhf54dzHkbRElCl8Ctf13Ty2SaSTjNLaLK5gTghzVH+IxvX3558tonmMcR6tZgczyY1OcVJlP3/s+hZ7aB1vVwuvF32xyS1Sx+/vJ1UMfb9ZCeBznLL5cCXUSV9OLrROvB/UdQj2+cCVPGODd/NZH8HJNidmBz3mUjQ68ZM7bTHKsOtafZd75VDKDbCjcTO70B430DstHu1tJ5JbIR2LrtW294PaajZhXCcY+jd7xu8DFqRUUy2aWVj7Kd5fUVO7GesI2t1j3btz6aYoPOG8Ns6ogY1dQGfQlrNfclvxixFDeyw8brSPVY3svD5VOAe4bdrwnuevNfRs11Cz/APiVGS/wP4RLgHq2dL4bUXjTdOZCq80klG+jKlLMk+P0STjQZa6wEq3z2oznwXjfVlFpPjrhbeLrtnUtqlj1/NeDspMtb9ZCeBzqK85GjR60coPoDrkDRv2A3vRKb5DEn9RyGpPqdYeSaFDDXMNIrNMITY3eG456PK/THUGKeR2+UHWv+1K6aI2hvQ9d8xHN+E82OBT9JdpZxCHWq7hrzUYnuKmfH3o3r1Y2SON4apyfQyaOZ44sBjmscc+OdwXmvnDdTHLKJ+4R1ocHg5zfeeofW2n6KoySN5Py3sZ67c6THKZf/mZNssK6M08rrS+vwZck2yCdMCKifLz5Mj96efhf+YG41NwG5Vus67AG9Mvu9A41GD6nUxk04DtcGHorHhVJRGyNpu+voYUdPdCK9vhePYM1gK282VKNXi38hoWWW8XbY+/yS2Sx+/qvF2Mub9ZDdRLu3C1lMU3lKqpMwcCXLT4TzlnA22f4MhZEgfYbYB96fZfGuYRqGfBmvPJtUcmSk6Rw2zl050CrkIXBmOcSyq2EYN5ZNJt/UimKeapvL/ZlBduKTD9Z2QXMt54X0RBd3ZH467j1jGvTZ2L4PONJDC5kUUtWR/ANyMBr3XUoyQZS4mp6OOMl2YbtRQIk7Qtb8/nOttwPcoKpSqBlQjR+VcR4PhclkKvK70hoUzz4HPISuAeXGA6s4bgOuRMjFHE8YlVF/S5zhV+p4T3V1GMcLrapKjsgU9gynUBj8Wtl2P6oaVZ+oy121Z9hoMonx9w8TbZW9MWrv08Ut4Oyky9v1kNwLdHlSIX6A5t9yh4ffdwNUVJ7w1xWAoxkGk5VlNl4yVJCu9ILqznkiU3vthH/IvLkfj2YDWMt6O6jwaVRyJKvExFCtrSi0crx7O142GxbCQrxnwCoqNeiuy7PZyvFryeilafH0nVOdMc9JrtCgvg9bkFKOopvXN1tLWkJ/5E0q/P6zF/8rYbwtone1u4GnomZT7n1YsIo+CW7G8fYzXlfZkKJepfc6AJ4b33yFaBMyz42/DtaRRy/Yil5b0OWbI5aZc5gtDvPa1ROruBJokXkOMPncIGo+sjIelYDW3s1mKkRNPI7rsXQJ8nVj/hoG3y/ZMarv08auIt5MiY99PdhLoLLzs+uSkKWYBuiacyEKKLoXf3k/0UU7Xdn0D+BGy4JllaRQa/LDJiG4N5sZwD9Q4PkSsGFVl2w9nUOxsboW0UK+h945hCbiMZteAGvBf6L5uH7YdR6zcnXyY9xDrhFXWy8P3nPYm6Gmi73m5c9yIQihPobr0/A7X0Q1eBs1YAKPZZNuNqCxOQOUyy3Bcqq3c13fYb2c4Z5qcNUfKDNMYm8JpufoZrysRUy6dnZz3qvBKFVsH0GRie/huaxIa6L5baTNztF47Pd+kKAf7xVyfQM98lmiVGbTsymHg077BXIysHq4Ln60uD6OfaIe3y4i3Sx+/WuHtRIx1P9lJoJtHD9IOnFJDmpsnoYiW8yj4iV24JSGvMi3fHVnvrgvb1qIwByqzX0cP7ulETcIniW6RoIa8t+oAPVIu63Lj7IZU62CuCbcv7bMRafLmgQt7PP4s6uBM22dlcBD4a6SdWk+19iMDnkKsV+V7M3/+Rh/XleJl0J4M+FPi4L+V6F5hyWihv/pnWOoNWzhcVbdbkaMyLvdZy4HXldaUPQbKbkWLqKzKg2U37udlty6nO2rAx8P7EvAZ5GaXunb1YlHZQtQqN4jBAew4RgY8HvhN4uTsFmQZOjzZbx/D0Xx7u2zNpLdLH78i3k6qGct+spWZNT34SUhTU0WNYtQiixCTNgi7mfJxLeLPErLUrVWsLMz11Pys74sqtT2UfjPPgxpguRHmKLF7L53qXqStuylc180oL0f5GDNo4fMhyGX0RGQe7pZFZDL/EtLoHYkWJG8Ix2xHqkmswlwnppH2qFdlgZdBe+zasuT9/1KMiGuuOp9Ffu4H6Q7775VoMfbNaMH+34XjGLuRC/jnibls6mH7j4EXszK5m7yuVLMNTZJSpdUriWHRc+DbKCdTjspxL9LmDuJ+7rTH6oG5LW1AUauvR+OHpRXqNBbZcbYjzXINhWY/EgWZuDfN57ox+Wy/HYZyU6Xa91Rr3S/eLqvxdunjV4q3k/bnHLt+sps1dO2oimBjFzcLnIsqc5ka8BbkgrgSFXc1STsIMz1nwINQBTdfdVB59hocJUOVrcoa+kt6L98cmcRPRML5GRXHBVXyNyMN19MoJtb8ZZfn6VWbZxqKVpqzOhKUrZH3i5dBe76OBqj1qLOuEcMIf5E4Ofg75PJr4aptoXHZxdjK4ULUJhZRFKtdwIeB/0WhsN8ZzmGRqBrIyv/PKG/QdDh2HU1cFpA7C+G3aYbvDeB1pUj6bM2dawOqC+mA9Avgd8O1vQ+Vy06c5SBH66mfTfM4sREljq6jJND1sP+NFDXREF3RzgjfM6TRN9YRn//2cK6/IT73qolZeQ4yrOUH3i6LeLuM+PhVvHZvJ/E8Y91PDirQgbK17wf+FVW+TyNfZDMntloIOoMsc1axr6G9P+040kBhbDPg35DZdmP4fh/gK+j+n09M67CJ3jvQqgqQo87J/KL7pZ3Lgfn5drt/6iN+UrJvjhZYG61cbnLg1UgYfnTF7xnKb1hHneew8DIo8gvU7s8iDn52H7Z4eoHY0R5AuYoy1O7/ktgh5UQtZfpKyyWn2GnnKGLY7cJ3Cys9zer3IV5X4lqdM5AW8vYU1w9Yf5Te+1qbNI4iNk78jLg8AooTCVBY923h83zy2/2J7f0/iO30x2gZxZuIc4pO47+xhCaTdZbXCuTt0tul4eNXa7ydjHE/2Y1AN0/rSpahB7WITLDPI/ogD2NN2EozRSyT1E10F/0JRTlyV7AK8lbgj5Pv9noEekjm5jAsylqRXthN91GZzCy9iNw1bNHrPoqLZnPiAuzTkAbGKr4lo8+RNqPVdR8b/vNAmjuTjKg9ejPqUPbQP14GzewMx5xHCopDUFux634XUs5YKOEZdI//TgyPnfYnOdE1+K5hW4Nmbd5+pDmbR0qPeriWtL3YgGiRszJWLiWK1xVha3LKL7u+OlJkjULy6UkkR+5eT6PZs+aZKNcWyW/pM0zdgD5OfK6XofrZKfhDWWCoI5e05fTS8XYpvF0KH7+q8XZSZCz7yU4C3Xq6W5hp6+bSBaV28iuIWdLTCtPKjDoMUnNktybqNEyoabHs+n6MJO1+B56zw7GuoTliTYbMxm8n5tXoha3ApcRIPPb/JeD7fV7vHqLPbyeNUQ1FM60Dz6V9GZnfbwb8NrE+fLvL67oReAEx4E4V1pDKn3sdoLwMWlPuNK8qfU/PsznZNl1xDRlwDrHMPh8+X5BsuzjZv0GxT1qi6MIwRcy9mPrnL2fgJa8rYgPwjOQ4ltMnR3mDMlRXFlEYZstBehNrNzDWqLAzvNJnbNiELAO+C9yZOJbUUPvMkKbc/ptadu5WcUwjtVp8ImyzRL11tD7J6tp+hmuh8HYpvF0W8fGriLeTyFj3k91Y6A7QveRu5uo68JzkQqeBHwAXJcf6UtjnL1HSxWF25OmCwW7XpE2jvHpW4Ok9rwPORNffq1B3NdWVI2UOeCrwNaLPercVcoaYK3C1MI3EqSgRpVXidcRwu+VFnKmG0DRh3fiIdyrLdD/T6uQU00QsB5NcBt0eczcqlzT3TIYiOH0Mta0lip1XL8eHonbU2v6w1uUMi7VYVzYn56ohN3I71vuAfwROQc93CU0eh+1il97nWrUwDMI8KiPLKWbldVJ4PwG5GS2hif7vEZ/hxTRPmNKJlEWbI9lm9ejtwK8m//tT4vO5Kbw36D74xHLh7XIy26WPX72xFttJytj2k90IdFcSF49Cs+BgD6gO3AWZr+fCd8tDsg54FpI8rQH8etjn7V1cQy/0W/mPoljwJybfZ9F9nImut5eK0u31ZBQjhPbCPPH5rDZbUA6bHC0SPgNpMyzK5x4UbtbIgdcT69F3aF2+x9HszlCF7bOBaq3acuNlEOnGBSJDypQceAzS/PVyvZ3CB4+ylnmt1RUbwNLXOcRoyNcT3Wy6ZVM4jk0ScprzH20nJkvOKa4dvprVq//jRDoROTf5vJeoqLW8SB8HnkycpPwxCq9t9fgFyX/qRO8TmyvY8xjV5+LtsjOT0C59/GrPWmsn3TCy/WQnga6OQtquQ2bW7xIj9YAsSZ8lWq0OJBdlF3EpMpk+vHRRaaFsC+87urnoDqRr3/pZjzaNNA9PIxbsq5LfN1NM1dANV4Rj3YnWlsjlqISd0lK0Yx9qiJ0sp3bdqVbKnqtpYW4DvJyYh+9vWxwDortBq3N9ASkYfi05j3FNeL8tcjc114aDwAfovYy9DFaGDLklg65zOdfULBdeV3Ttn0ODtEX03Ufs6+tIg3l9eHViFikHb0dR+/opiopFS0C7kThRgOj6YuVg9Woc13cPgwWK1oV2pHVlE6o/90VzgCm0Huavw29bKAZ8sMlJRlyT9fVw/ptprlfLuU7I26W3y+XGxy8x7u3EGNt+shsLnTX6dWiNWblQraE2UIO8iWJwEZDknJf+Y++p9mEbqxtVyRZwWgLA1GIH8VqtM+qVq1tsX0Id6lSPx51FGrFtFb9No/u4sMdj2nEzJNS2EgrtuX8BCfC/j+rHGVSXj2lsGqgcDqL7XUSVd3+4l07XaqF9q9Z23jb5XF6v2SteBitLua2NE5NeVzJifqtbUXyGc8g9xe7/R10c38pzMzHXj41B64CXUfR8+I3k+1VokHwS0TWogTxCLgjnniNq3lcq6MAoYAG6ulkrU8bq6BIK/mDPOI3eB/E5vzl8v4bBvEfSSHm9BjzwduntcqXw8avIOLWTMmPbT3Yj0OXE3BvlyroVPZxU6qxqiPuQq6IJSTuJhXU0xRsxoalsul9u9iHByCqhkaHkm3UUjXIr0kxdTHcVx/LMtWvoMyiU6UFUSbutkNZZWoSigxQrv6VI6LWCW+LE04AvAw+geP05SjR55/C9jurSInEBcPmcJvQT9jsFeGT4fjwK/dtJQ7cQruOhSCNzUvvd/3+97Edj5mUwXGwCUKN60LAcjFPAyUibPC5Mel3J0HOroVw96eBaR/f+NYpa+laYC8/TiS77Hwi/nY7qzhZi+V5OjOBn11JD67PnwracuH7b+sZtFMeYdM3HuE0muyFHwQjsOfWC1YezUbqd8tiXKmjN4jIKbmLeLr1dDgsfv9ZuO0kZ636yk0DXAP4b3dj9aRZKptHDN3PhTlp3DDdRjPJyv/D5/kQpFfq3fhn9mu2ts8iJGqO0M0oFvV60MDmykh1F+woyE45/BPKx7ZUDKCzuC4lleCiqXOfRe5laNKYbStvNVHyA6CJ7VThP6n+fLtw8gFx3DyL/6b8Ix+k1R96usP8daf8M7BofhjRBOf0tuPcyGD5b2vxmLtvjyCTXlXXECVlVH/c/dPdc00hvqQIxQ9H37kXzOuOqiUQeruM3k30fje7toV1ey1pjhuhG1G0dylGZ/Tpwj7CtXPZ7kUZ7V4/H7oZhBIPwdim8XQ4HH7/WXjtJGet+spNAd2hy4qfQnD0dmi1a7U6YIS2AdQoWav9k5HcLSvb4vg7H65ZuI1zatR1C1FZYJanqCG3fbo/fy8N7HTFZYi/S+wxKFPov4fsmpCU4iAS6XjH3z1mKmoWvI2urdVyWxwWkQdmW7HtReD8kHO+7qOxmKHZ8ObGityNHGsU/pHUDN81jjoLYvBeFv+0niqqXwXCp0VqpkQOfpLgQeJyY1LpiffuVKABCFQdQX9aLy5wp0WooCa99XyAq7XLU3z0CrbOwe7l7sn/ZQpBumyQ2JZ8P0t1amXORkta8cExReCDZvtxt1Z51v5psb5feLoeFj19rr52UGet+sluXS7NWlQu124ucIUrMqS+s+d+eCbw7Od4gwTwGMctnaEFjhqyGn0bJNmtEAWtQE2mrMjMzbIaseTnqaNudbx8y9U+jZ/kbyP3ByjhHQWx6xe7zj4G/Ar5I0U0i7bSsE4DmOmKfU5cPq+yfQJ19jgLrtFscmx7vNkRTfJndKHhPakm9A/0F2/EyGC5TRPeaVoNiPbzMb34U3La6wetK+8Fvc/j9mjb7gAbTBbTm4hxiPUm1xgeR9tfK9Cvh+KegOnYH5M5zGM0KuQy4N3FMG3Z49lEndRurWpOSchBNRg4AP0fjs7HE6iuHusHbpbfLYeHjV/y+FttJytj2k924XF5IXJ9VXnj4QWIF7yTcmVRuOU++hixIWfJ7Hn47lWhuXUlSwdUq8lnInNqvOT11G7kDyjD/IlprHHJitKAtdBck5jT0DGZofqb9lGF6zWXTcYPiAs5rKKZ4SBu+PU9o7gi/l3z+WQ/XlgMvQfk6Xlq6Pgufa6FrB6k/XgbDZR8q0xpR6ZKuj1gAXo3KdNzcVia9rlhUsKrBaxFpcffT3uXmxOTzAYqThfQ/NrmwbfdBE02bPO1E9etPkIIM4Ido/UaGEixbZOZ0wrUW182lmOI0o+iKV8bGvReE90ayfaVZILatfibI3i69XQ4LH7/EWmwnKWPdT3YS6G5G6QYylJDyPTRrJ0ya7XQjC2hh47uJZvbnEU3yH0UVxQpwUzhmr2vi+tWK5MC30JpAwvVdFK61DvxKsl9Ob+6c3ZABDyYmFjShshM3owpdZdVcQCkX+qlk1nH/OlGzcgFq2BaG2M5hn+vIXTZt5CBNXl7arx+s468RQ+La9pQDwPkM3ri8DIbLItEFAzQw2qA4jVxy9tN9wKFRYlLrygLRpevmit9eju6/mwXmVi/KeYvOQ+t9FlAanFsnv7dSjKX9572S/UbdrWu5sMht7VzbrkfBHOrIXcrq4LUt9h8HvF16uxwWPn6tvXZSZqz7yV7SFpQfSgY8laKrZCtSLcsScE9isnGIEnZGTMhnvrxb6D7iZVXn0EtlWkBaoiy5RtPKfBcFK3lKOOa19FaBbgjHfR6tK8pG1EG+nP7WvlVdTyeTcRUZiuxZQ427bEUtn/N/kvOYVvBStAbTjvfO5DgfRkkjl1pcc6drs3ryl+H9RajjMbeQ/cj8ndN7qOv0PJNeBsPENG0zyDXHODq822CZWsjHhUmuK5aixgImpDRQP54Oxt0yTwy2lRMTH98RLco/srT/VchVHeJ4laE+dRjBNdYSVeNPThzLc2I+rXQCN254u/R2OSx8/Irb1lI76XTuMiPdT3a7hi59T7GK26u5cxo9GPOlfjdRU1RH+RtSunG3yIiBWx4Xvi8AD6E3oc7uY4miy4ddXxau/yi6qzx23Uvo4XfSRKULhFvlrSszH479MiSQ2rXOAG8BnktvZXAjusfy8/0MxYrbQL7WaRLGU8L2E4GPhX03AK9F6/uOQ9FOAb4crr3burOVWDano6hGhGuy3Dh2rJ92ecxWeBkMn0VULi9Hayx+gcp4PbJMW16ZY9Ci+nFZg+B1pZkcRcB7IFqT0ema9xAX2x+FQkenE4v0uLbGZqH0+03Jfs9A5fiz8A7Sqv4ceVeMm1vUMNiHJtJvoXkyvYS8YWxOcC9U33au1MW1YC753Ku3jrfLZrxd9o+PX5PRTsa2n+wk0OVoDZ1ZqcrUgX9HBdxtQ6yq5Km/bQa8OBzv7eEa5uiuM8/QPZ0ZrvkAvQVYyYgaikuQf+w76c4tYZg0wqubDiFHOV/maL7OeboT2ltdQ44WnX4TRS5aQs/lqvDbAaShMsHW3G/TEMYzaCF1asJONVi9ajW+h+7z9OR4C+F6hz0YeBkMl/R+bQF5hpKUWt3dy3gtKDe8rhS9ATK0tveiHv6/O/zvKBSUKkfre6bRhCnVCncqh9sS1xXbfd8VjVd7Ge12MizSpNzXonIzhWEnMppDmI8j3i69XQ4LH7/WZjtZM/1ktxa6o2gWFnIUInRP+LyX7h5WjixPs6jSWOOA+OC3I4EKorB3I50foGkWUtN3v2TIxFu+71n6c2PMKWqgWgmJ30X3PqycYf2WgS2CzYB3obqyAPxRcsy0Iwc1cHPzyJBP/YlE3/t0kXZO7wuec6QFqgGPIT7rDajh34fm9QKD4GUwPHIUAhmk/boZXfORSJtnfvvvR23k71fhGgdhUutKA/XN90XPsDx5zJCmdYH2/aatSZ4jjgn2Po1ceoxO44xNFqv6vk8QcxVNEhmqS6e0+P1HaAw3K4ONV+M2MS3j7dLb5TDw8WtttpMyY91PdiPQpQ+hbGL/Fv01wJ1IMNoVvh+LHpo9PDt+DfgHYtqAhxIForLFLo3IOaxQoWVzaypQXtfH8eqoYtaAT9Es1NXRgtpew53uQ42rfL2HoiSev9/jdTYo5hCxtYTTyHw+Q+zYz0/+VyOaqRuoM9gafltAFs+LiZU/dcXohjQQza+gnH1PQMnYj0GDy9F0FxK3E14Gw2cP6uyvINb9aYrtwAb8w9D6jHHA64ooTwwzlJpmB3HC0Il9aDH+BmIfOEu8l248NdahENwbaJ48juqEcdjMlb7fDa0BB409ZxJzSBk5ssbkyA2u1/q2HPTqZpni7VJ4uxwOPn6tvXaypvrJXgS6HC2cfF3pfzWi5NwtCxQ1PxalMQ+/zaMM84fQPu+HMYXM9uXG1Ss5qiSbaE7FUAf+gGhmvxfq4HrtiHa2uMYcCa+LqGzM2tgrVTleeiVHeURAmqe3Jsf6XfSMXoKsiDcDzyF2ZOmi2uNL13EmaoAfoj+f51QLkuZGMYbpGutlMHwytKD5VlTXy3Lo63Fh0utKO5eTDPVp3U4cQdd5S/K9V83uMRRdulIWGJEF7CuAldsSetb/jKwLAD+p2H8BPacdrI3y8XbZGm+XvePj19psJ2umn+x2fZWF8rTKug7d+MsompnfR383mKHoj99Fkv65qJD3J/t0Om4/bpDtWEIP1gKsNIAvAXchLiAdJubbfsEAx8iB+yHB8M4DXo9pHcxf2bD7PhY9czO3d+NzPKgb7D5iJKVDaa6/JmwPCy+D4bIFpQWpsj7XUcjkm+gvGtZqM8l1xRaKb0SDfuopsIC08gfobfLYL0ejxfN2X0sU7/EKoqfFuNWxfrFABGmd21raZytRiXk7VIevC++9TtxHCW+X3i6HhY9fa7OdGGPfT/YSMATUKXyU+PBPBk5CBd1vwZqlLm3oDwAejaTju6BC/BTRJ7fKX9UCiQyLHPhzin7dVpGXixNQiNd+OoNdKKLnr1F8FsvRsaTHtMhPZ4fX5V38f5BUAs9AltKfIFfSI1BD+iXSJt2dlRFovAx6xyYUl1Ctbfssau/HUlTmjDtrva400H1cAvxfqlPcNIZwnm6ZCtdzLNV1bRLYl7xypCxdarN/htIQWcCKGtKwH4EmU7Ot/zq2eLv0dtkLPn6tvXaypvrJXgS6HPg01f6qg5qZr6OY2yQ156Y8MbzKD7CBXCUvIy5QtFev2H9OBu4EPAn4OBJar0LWrx8AV/Zx7G74OdKq9bN2wMotR4Fnrga+TPsK2is58LfhfQlV6r9Jzm/7VNUHiwDVL3PEe0y1KLPhtVLWKS+D/rDoX62CG5myJAMezujeRy9MQl1J1zr8lOK9bECD8YOBs4Z0vnZYoC3CuabC+b8fXpPIBqTw29BhvxpSClrC6RPRuvXHsjbaYoq3S2+XveLj19psJ8bY95PdulwuEHORfBR4PPEBLiDNRJ3uc7OVuRVaMzeHIly2cmlsV1imaTLJeYb+hcxriS4Bqe+uNdgHoAhSOco3MixNk0WmOkj/5tsc+ADwanT9t6Z3S2w7MqQZ+X10nUchgTzt5M4L+51NsdEPet7j6Kw8mEKDx742+wyKl0F/5GihdA1FDCu35/L9/esyXEPZ7Wi5mZS6soTyXWbAf1Cc0Ng6iwxpMe3eh+2icgQa6P8b+C20kH46XNuLUQ6tUQ6LvhzY5KesHC2TAfcOryehtvGy5Pdbo3oyj+rKSrejYePt0ttlr/j4tXbbyZroJ7sV6G5GF2mN/yPIfxRkWr4HseD7FXDs/zuAR1GMdplTDONf9fC2IGFzPYNpBaqoari9SuJTKPLRFK3dNhuoPPuN2nMFUahNLZ3Dxo5rlr86iqYJ8pU3YdLIUVjiw1FC0X7JiZFM7f5S5lm5gcHLoD8som03bKC4CL9X5ii6QFxLtGCvJJNQV/YS7/PnFb9vJir9zg/XM8yJo00oamhceyJxHLA1LYso4NUgkRPHjaNRXZtCZTBFawVflryXw9zfB63vniNGhruW8XObS/F26e2yV3z8WpvtZE30k/0mnT4l/LcO/B5aDDosF4E0r8S3kuPeA3U4i7S2vtWID3+qxT7dkCMXzhOJPrI3J79Zo8qJ2ep77YxS99JhkCOX0IyYB2S5qAHvQJZKiIMGqDysAy838tR83y/tNDazDNca2Q4vg8EoR2O1bXZvSyhp7dfRwGCUPQBS5U15ob0xhyJwWT4cm7isFJNSV1qd5yfJbzWkeZ0nLiYfFlmLz6mXRQOFnB5Hq9IgvAqVySPROp9Oaz0aaMyzOUJanluS98vRsxzFNCmd8Hbp7bJffPwSa6mdwJj3k/0IdLMUpdI01Gy/D66sEcpR4/hXZNo0SfhbxLV2VdST/S4I3wftIFIrl0ncb0S5KayB9coSWlg7gzpRO+4wBLyjiEJtJ3N1O2ZK72VqKCDOflRZjwnbF6i2DJo27l4oRG6v15WjhmMWyPJvO4n5+4aVbNLLYPiYMuRZKDqu3UcdLTY+D+VI6qYdZMidxwbMw0u/X0lU8mwgavMOR89omBOXSa8r5mJk53s00v4D3IGV0SybBnka3ddeNF78CVrsbvsMc03xOGDjaY5Cjn+BzhOVGvCe8HkR5Zg6CfgxMS/sJjQ+58AXGU1rnbdLb5fDxMevtdlO7Lhj3U92K9Dl6CFuQr7WdkF19GAvTvbr52LLQte7UcWaQ/7WJqDso/UC2t1oge+pSKhbIoYhHYR70dxoZoBzkLRt2pLb0z7XhrlTghZTpsfch8ryjcBvE9M/lDUendiLOutTiH7N++m/o5xDLqzllBDtrItzNGuvlpAr7SDuB8YZqHOza8pRbsRv0F7Y75dJL4Oq+0uPn5ZLp8HF3G8ymgeBGlr7+TqihvPbqENNBxmzPh9NjOiaI9eMcnvZD/yIOBi+KGy7L7Jm3x5Z4oc1KE56XUkVe+XjXsFwtf7QPNheGt5n0ETJBtQ68MPkukZR8FgufoTG002oTB6LJtFn0tklv5a8vyPZXkdRE0n+P0ss12GvwRoUb5fxfdLapY9f3TPJ7WRN9JO9WOj2oZutA28P2/6XorCwe0jXZRVoPfBs9DBvorO/rFnk0oc/CFeH908BjyFa0mZQKNUcNUy73g9RNAFbYs+tybYM3dPdiBVlEXgtMWrPVmSaN+tkt2b2m4mdyZfD5/fRn59xDXgvEj7TBp4jAX4RhYz9aul/Von/lVjRZ4C/QGU2CPNUN650QPgmw2vkk14GGXIbySgOStcmn9cRy+ZyosU+9SGHGCHMXDOqOsiy28Y8cM/kWn6AytC4kDjQmCbTol/Z/deS1zvCb88Ovw0zd+Wk15WDxGdxAirrV6OysPXPprizNdAnhfcrGSwX1vbkc+oOZFwO3DZ83jHAecaVHLie2B7/Bz2DDLg/GrM6rQuqlT7/I/A04tiyEpaefvB2Obnt0sev7pn0dmLHHet+sleXy50orKdpYA5h+AFIUnqNXNNAGp/NnXbsAuuATFPyjyjCkT1Uq2RmPayjNXd5+K+trYMo2FnDfBCtK0aGfJV3lvaZCedu50KaI3fTU4nuoP0uGk07r/9GlkorDxMaIQrxu4nl/kuiYG31Yx39p5JISRvzdPI5/X1YTHoZHIKuuVXUWYiJRs9C9TZHmq4qMrQovpZ8LzOHOtUaWjdg+z0zfK4h7WROzH/5Z8n/bV1vnRixyjSInTrjQZj0umJa5k1oQngQRf/6KXJd2U7RrWcaPacMPZ8X0t+9WohpW8T+s3D8cXDfWikWUJnsJo4JO1A7+mc0WXsHxfbRjVZ6AXmDgJ75uxk9oc7b5eS2Sx+/umfS2wmsgX6ynzV0aYGawDVKLhaWJHAY/ByZd7eH1/NQpXo2eognAa9E5fHaiv9nyXsNLZCtapjr0GLMl6BKkyFNiTWOOlprZ42p3f1ZGgljkIpjz/oW4C1h21nJNeU0R/DZg659Ad2XdQQ5uv5BFoXuBj6GymdzOE+OtEO3UFzPOSwmvQwy4oBY7kxBioM0ZUhOUatoWBLOTh3g7dF9nU1RQ5rmfXxUeD8nvKf92DzSQJ8QrmsKeDLw4fB7HXXQy8Gk1xVTZpnWOQ/nOIliX/iXqD5kxGdxBOr7Fum+/96CXGKsrj01+W0D8XkcipRyozROrQY58Fbk+bEp2TaPwpLb5CtDa0juQXdrgWxSPJccb5Twdjm57dLHr+6Z9HZijG0/2W+Uy1HrsJeTtBMwa9ebUeN+N7GRvxQJbGVtilncTEhr9eCtw8nQc/kE6kTqyNzb6zUPSk7MtZJRTJp4PkoumboGGBla9/hHSNNk5XDFEK8rRzl13hmO/8BwrhtQwx+m6+8kl0FGjGCbA59DFuCq+30I8vHPgD+m2XXDsLJIj5FOKs4pbTO2h/fLK35LmaXo6gNxMPx94tqNYTPpdSU93xeJ+USh2QV+BrhT+HwMmqD8LSqfPyAuqJ+nuB4n/b6JOEDOoD7Z1n/sRy76tgD9ycj1fOdwbnEssbKro0mYRdvbSrTGpBOVPWHbOqq9cHLUFu9CrOfHoXo7Sni7jOebtHbp41f3eDsRY91P9ivQTRpXI5OpVfYcNfjUfWAj8Pnk+3zp/QPEylllOj+IIl8+PxxrA8WOIkOar24q7x6idmiO/iyWOfF+asQGniPN0UZikBdjH9K6Zeh+3ktcRDxMTcoG4N+RS4WZ4b+GFgub6+swGsykl0EawWodcg2xtZ9lZlpsryJHfvmmwDiDYl1vx0kdfq+iRhwI68SFyRcxvAXlk15XUnLUl6Wu71egAdiehWHP2xRjz0L17q8oBuA6iNYrn0SsN9dSrJ/lENZ5sq8dY5Kxseg7ybbvEttfGmXvnUhheSLwBvR8UgHAAnfNMvz6Oky8XUYmrV36+NU93k4iY9tPukDXHdejhOmm8THT/KuAPyUmC08FtcXkPUcV7zXAL4A3oQ5kCgmLC8CfE83KD6HYQTwk/P/zDM+dtBvy5L2efLbteyj6SM+jKE7W0eWlYywgDd0wKnWNOFCY9fPscJ3nDeH4xqSXgV2naV1TRUM3WGjhVJFhgyDJ936p0laW26F1sHdhuHWjzKTXFcOUTldTHPzOJLp2vS1cg12P5WAybb5pun8S3k9I9t0RPh+N1gPViNrRnOZyXERWgFEVOlaadBJYRxPD9cR2eAxwJCq3y4guYvYMzNpRDpiRE9eLjxLeLsUktksfv7rH20mRsesnXaDrHvMF/jfgdGQWvw6Z6X+AgqaUpXNrGHXkC2yN5B/C+8lh/yOAv6PaR/v7FdtWilTrcW90rdspWibLi15/gRZb3wc1wH8iRpVapOhL3g/tymI5ymmSy2CJmP4iA+7a4/9NI7yIfPI/THGy0Ouxyv+pIzcU0xxeiVyGPk5cjPxS1OlCfE7pwDNMJrmuVFEu4wxpMkGafluzcwxxgDsFRQs2pVk6iGdE5RkUNfB70OThs8TJah0p3Zbrea8VcorLKK4g5ps9jThupe3nNslne69yZxsFvF0WmZR26eNXb3g7ac/I95Mu0PVOHWm6LKXB1vBu0vnJ4X0R+CTR3JpK+1NI2wJF7U8t+W8jOYb5Lmeoge2gM8O25Fll/TbxXlqZ++vAV8LnhdL+g7gIZCgM8aE0u3Gk7BrgHO2YxDJIO6L3o4673Ik2KC6GTjWMtu5iP1JqPBFd91Rpv07X8F/EvD0pxwOfCfscQK4faceal15XoAAB6b0tB5NYV6qwsi4/67TsM+Li872ojzsB+FLyvxrycDCrQR2Fy65TPHZ5suPCXH/Mo0n9D8P3DDiWottQjjxXrki+jzreLsWktEsfv/rD20l3jFQ/6QJdf+wh+lzfHjXuA2H7nYgP0wSxqgWT6YLbHxIb0BJyV1hEPrzpIsxRGDC7DTucl96HwTFIQ/acFufbRbOf93IwaWVgbif/SXG9g0XhupyoePg8Cuhjg90G1DYOAd4FvCJs34K0p7fu4vwZUpSkg2GOtMlpGTfCuR4btm0O13Qtyldj7h8r2Y4mra60oo6S4NpgdwRRmVWe5Dw0vD8y7GMpZNYn+5jb02+jwA1mOZhD/eV8OKdF93N6Z4EYFAA0oS2vAbKJ6Ljh7VJMQrv08at/vJ10ZmT6SRfoBiNHi2PNz7yBHuYC1RnhTTBLf8tQJ3Nm2O9hFHPIjaOGedDcI52YJuZKmUbltRyRnwZhLZRBAw32xhbgweHzHuBGNBG4f9hmA3dKjgZIq8c2QPRzrbtRJ29aU3vtIeaOaRXSeZTb0FqoK91wE+ofDwWeApyL+r9ziRO/S1F9St1pqjThOVKSHYoirK0DHpH89i1kSRjl5z5u5ExWYnZvl+PdLn38WhkmpZ10y6r1ky7Q9U+5Euel7Te1+e8+tMASostmHXUmBylGF2qgCDvDimY07vyImMTySygE8hLKGVj2YV6rrFQZmDtBih1/Gq1JMFcbU0Kk+9jnqnDH9lu3Wivb923EMNcHgAsoKj1GeeBbDUatveRETbOd/2nAw4kWgjK2n2nXl4A3ErWz5qJeR/XSXL+8LjijirfL5cfHr/Fn1NrJSOMC3ephDXcn0U99Fln8QFob28eFObEbRdD6JlE7aI36lvC+1jvE1SwDc1ExTFt2KYoEezVwB+DZ4fd0cfQ14bqsrv8MrcfodkA0zegscvkxpcePWPvPvF9Gtb3kKNTz1vB9e+k6UnevOvCbxLXLUPRwODb5z/uQhvuQZJvjjBreLlcHH7/Gi1FtJyPLVKPhssKIMAtsS75PkmtLL2xCneFWiklSf4I65gZFf+a1yGqVwRQa8Iytyedrk3POJtuX4zrKaxGc1ox6e8nQ2pzfIE5ydqAoeBmaTJ2OBnIL9JTWr2uTz14XnHHB2+XK4+PX+DHq7WSkcIFutEjdA9yM3B7rFC1JatoxTkoDX+0y8IFpfFjtutKOo4l9n71nyK3maKJW1iaOaeho7yedccbb5erh49f4MMrtZGRwl8vRYhw6wVHBGvTPk22TVn6rXQY+CI4Pq11X2pGuIZlOtqUhvCFOHMvrYhxnXPF2uXr4+DU+jHI7GRlcoHPGHW/UXgZO94x6Xdld+l6VT3PU78FxemXU67S3S2cU8DrWBne5dBzHcRzHcRzHGVPaZV93HMdxHMdxHMdxRhgX6BzHcRzHcRzHccYUF+gcx3Ecx3Ecx3HGFBfoHMdxHMdxHMdxxhQX6BzHcRzHcRzHccYUF+gcx3Ecx3Ecx3HGFBfoHMdxHMdxHMdxxhQX6BzHcRzHcRzHccaU/wftnSCOd3KVggAAAABJRU5ErkJggg==";
 
@@ -1144,10 +1102,10 @@ function RecentSessionsChart({ sessions }: { sessions: JsonRecord[] }) {
   const data = sessions.slice(0, 7).reverse();
   const maxDist = Math.max(1, ...data.map((s) => safeNumber(s.distance_km) ?? 0));
   return (
-    <div className="rounded-[28px] border border-zinc-800 bg-zinc-950/70 p-5 sm:p-6">
-      <div className="flex items-center justify-between gap-4">
-        <div><div className="text-sm text-zinc-500">최근 세션</div><h3 className="mt-1 text-xl font-semibold">달린 흐름</h3></div>
-        <Icon name="trend" className="h-5 w-5 text-zinc-600" />
+    <div className="rounded-[20px] border border-black/10 bg-white p-5 sm:p-6">
+      <div className="flex items-end justify-between gap-4">
+        <div><div className="text-[10px] font-black uppercase tracking-[0.16em] text-black/40">RUN LOG</div><h3 className="mt-1 text-2xl font-black tracking-[-0.04em]">최근 달린 흐름</h3></div>
+        <Icon name="trend" className="h-5 w-5 text-black/35" />
       </div>
       <div className="mt-6 flex h-36 items-end gap-2 sm:gap-3">
         {data.map((s, i) => {
@@ -1156,20 +1114,20 @@ function RecentSessionsChart({ sessions }: { sessions: JsonRecord[] }) {
           const hard = (safeNumber(s.rpe) ?? 0) >= 6 || (safeNumber(s.training_load) ?? 0) >= 80;
           return (
             <div key={`${s.date}-${i}`} className="flex min-w-0 flex-1 flex-col items-center justify-end gap-2">
-              <div className={`w-full max-w-10 rounded-t-lg ${hard ? "bg-amber-500/70" : "bg-cyan-500/65"}`} style={{ height: `${h}%` }} title={`${dist} km`} />
-              <div className="w-full truncate text-center text-[10px] text-zinc-600">{prettyDate(s.date, false)}</div>
+              <div className={hard ? "w-full max-w-10 bg-[#FF3B30]" : "w-full max-w-10 bg-black"} style={{ height: `${h}%` }} title={`${dist} km`} />
+              <div className="w-full truncate text-center text-[9px] font-bold text-black/35">{prettyDate(s.date, false)}</div>
             </div>
           );
         })}
       </div>
-      <div className="mt-3 flex gap-4 text-[11px] text-zinc-500"><span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-cyan-500/70" />일반 세션</span><span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-amber-500/70" />강한 세션</span></div>
+      <div className="mt-3 flex gap-4 text-[10px] font-bold text-black/45"><span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-black" />일반</span><span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[#FF3B30]" />강한 세션</span></div>
     </div>
   );
 }
 
 function SectionBanner({ tag, title, caption, color = "lime" }: { tag: string; title: string; caption?: string; color?: "lime" | "yellow" | "blue" | "purple" | "coral" }) {
-  const cls = color === "yellow" ? "bg-[#FFE348]" : color === "blue" ? "bg-[#8EE8FF]" : color === "purple" ? "bg-[#C9C7FF]" : color === "coral" ? "bg-[#FFB28F]" : "bg-[#8EF7A4]";
-  return <div className={`rounded-[28px] border border-black/10 p-5 text-black sm:p-6 ${cls}`}><div className="text-[10px] font-bold uppercase tracking-[0.22em] opacity-50">{tag}</div><div className="mt-2 text-3xl font-black tracking-[-0.05em] sm:text-4xl">{title}</div>{caption && <div className="mt-3 max-w-2xl text-sm font-medium leading-6 opacity-60">{caption}</div>}</div>;
+  const cls = color === "yellow" ? "bg-[#FFD51E]" : color === "blue" ? "bg-[#116CFF]" : color === "purple" ? "bg-[#116CFF]" : color === "coral" ? "bg-[#FF3B30]" : "bg-[#2FD07B]";
+  return <div className={`rounded-[20px] border border-black/10 p-5 text-black sm:p-6 ${cls}`}><div className="text-[10px] font-bold uppercase tracking-[0.22em] opacity-50">{tag}</div><div className="mt-2 text-3xl font-black tracking-[-0.05em] sm:text-4xl">{title}</div>{caption && <div className="mt-3 max-w-2xl text-sm font-medium leading-6 opacity-60">{caption}</div>}</div>;
 }
 
 export default function Home() {
@@ -1186,7 +1144,34 @@ export default function Home() {
   const [utmb, setUtmb] = useState<UtmbSnapshot | null>(null);
   const [utmbLoading, setUtmbLoading] = useState(false);
   const [recoveryExpanded, setRecoveryExpanded] = useState(false);
+  const [coachQuestion, setCoachQuestion] = useState("");
+  const [coachMessages, setCoachMessages] = useState<ChatMessage[]>([]);
+  const [coachBusy, setCoachBusy] = useState(false);
+  const [coachChatError, setCoachChatError] = useState<string | null>(null);
+  const coachEndRef = useRef<HTMLDivElement | null>(null);
   const swipeStart = useRef<{ x: number; y: number } | null>(null);
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(COACH_CHAT_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        setCoachMessages(parsed.filter((item) => item && (item.role === "user" || item.role === "assistant") && typeof item.content === "string").slice(-30));
+      }
+    } catch {
+      // local chat history is optional
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(COACH_CHAT_STORAGE_KEY, JSON.stringify(coachMessages.slice(-30)));
+    } catch {
+      // local chat history is optional
+    }
+    coachEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [coachMessages, coachBusy]);
 
   useEffect(() => {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -1356,12 +1341,12 @@ export default function Home() {
   }, [report]);
 
   if (loading) {
-    return <Shell><div className="mx-auto max-w-3xl pt-16"><RunnerMotion compact label="SYNCING RUNNING DATA" /><p className="mt-5 text-center text-sm text-zinc-500">최신 러닝 데이터를 불러오는 중...</p></div></Shell>;
+    return <Shell><div className="mx-auto max-w-3xl pt-16"><RunnerMotion compact label="SYNCING RUNNING DATA" /><p className="mt-5 text-center text-sm text-black/50">최신 러닝 데이터를 불러오는 중...</p></div></Shell>;
   }
 
   if (error || !report || !view) {
     return (
-      <Shell><div className="mx-auto max-w-3xl pt-16"><p className="text-xs uppercase tracking-[0.35em] text-zinc-500">Running Analytics</p><h1 className="mt-3 text-4xl font-bold tracking-tight">JACKSON RUNNING ENGINE</h1><div className="mt-8 rounded-2xl border border-red-900 bg-red-950/30 p-6"><h2 className="font-semibold text-red-300">데이터를 불러오지 못했습니다.</h2><p className="mt-3 break-words text-sm leading-6 text-red-200">{error}</p></div></div></Shell>
+      <Shell><div className="mx-auto max-w-3xl pt-16"><p className="text-xs uppercase tracking-[0.35em] text-black/50">Running Analytics</p><h1 className="mt-3 text-4xl font-bold tracking-tight">JACKSON RUNNING ENGINE</h1><div className="mt-8 rounded-2xl border border-black/10 bg-[#FFE8E5] p-6"><h2 className="font-semibold text-[#D02D24]">데이터를 불러오지 못했습니다.</h2><p className="mt-3 break-words text-sm leading-6 text-black/70">{error}</p></div></div></Shell>
     );
   }
 
@@ -1374,11 +1359,11 @@ export default function Home() {
 
   const tabs: { id: Tab; label: string }[] = [
     { id: "overview", label: "한눈에" },
-    { id: "simple", label: "쉽게 보기" },
-    { id: "quality", label: "훈련" },
+    { id: "simple", label: "쉽게" },
+    { id: "quality", label: "TRAINING" },
     { id: "peak", label: "PEAK" },
     { id: "detail", label: "상세" },
-    { id: "coach", label: "코치" },
+    { id: "coach", label: "COACH" },
   ];
 
   const onSwipeStart = (e: React.TouchEvent<HTMLDivElement>) => {
@@ -1399,66 +1384,111 @@ export default function Home() {
     if (dx > 0 && index > 0) setTab(tabs[index - 1].id);
   };
 
+  const askCoach = async (preset?: string) => {
+    const question = (preset ?? coachQuestion).trim();
+    if (!question || coachBusy) return;
+
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (!supabaseUrl || !supabaseAnonKey) {
+      setCoachChatError("Supabase 연결 정보가 없습니다.");
+      return;
+    }
+
+    const history = coachMessages.slice(-8);
+    const userMessage: ChatMessage = {
+      id: `u-${Date.now()}`,
+      role: "user",
+      content: question,
+      createdAt: new Date().toISOString(),
+    };
+    setCoachMessages((prev) => [...prev, userMessage]);
+    setCoachQuestion("");
+    setCoachChatError(null);
+    setCoachBusy(true);
+
+    try {
+      const response = await fetch(`${supabaseUrl.replace(/\/$/, "")}/functions/v1/running-coach`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: supabaseAnonKey,
+          Authorization: `Bearer ${supabaseAnonKey}`,
+        },
+        body: JSON.stringify({
+          question,
+          reportId: report.id,
+          history: history.map(({ role, content }) => ({ role, content })),
+        }),
+      });
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload?.error ?? `Coach API 오류 (${response.status})`);
+      const answer = typeof payload?.answer === "string" ? payload.answer.trim() : "";
+      if (!answer) throw new Error("코치 답변이 비어 있습니다.");
+
+      setCoachMessages((prev) => [...prev, {
+        id: `a-${Date.now()}`,
+        role: "assistant",
+        content: answer,
+        createdAt: new Date().toISOString(),
+      }]);
+    } catch (err) {
+      setCoachChatError(err instanceof Error ? err.message : "코치에게 질문을 보내지 못했습니다.");
+    } finally {
+      setCoachBusy(false);
+    }
+  };
+
+  const clearCoachChat = () => {
+    setCoachMessages([]);
+    setCoachChatError(null);
+    try { window.localStorage.removeItem(COACH_CHAT_STORAGE_KEY); } catch { /* optional */ }
+  };
+
   return (
     <Shell>
-      <header className="pb-2 sm:pb-3">
-        <img
-          src={JACKSON_HAND_TITLE}
-          alt="JACKSON RUNNING ENGINE"
-          className="h-auto w-[330px] max-w-[92vw] object-contain object-left opacity-100 sm:w-[430px]"
-          draggable={false}
-        />
-        <div className="mt-1 text-[11px] text-zinc-700">Updated {prettyDate(d.generated_at_local ?? d.generated_at ?? report.created_at)}</div>
-      </header>
-
-      <div className="-mx-2 mt-1 sm:-mx-3">
-        <RunnerMotion compact />
-      </div>
-
-      <nav className="sticky top-0 z-20 -mx-4 mt-1 bg-[#050505]/92 px-4 py-3 backdrop-blur-xl sm:-mx-6 sm:px-6">
-        <div className="mx-auto flex max-w-7xl gap-1.5 overflow-x-auto rounded-[20px] border border-zinc-900 bg-zinc-950 p-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {tabs.map((item) => (
-            <button key={item.id} onClick={() => setTab(item.id)} className={`shrink-0 rounded-[14px] px-4 py-2.5 text-sm font-bold transition sm:flex-1 ${tab === item.id ? "bg-[#E7FF43] text-black" : "text-zinc-500 hover:text-zinc-300"}`}>{item.label}</button>
-          ))}
+      <header className="flex items-start justify-between gap-4 border-b border-black/10 pb-5">
+        <div className="min-w-0">
+          <div className="text-[11px] font-black uppercase tracking-[0.28em] text-black/50">JACKSON</div>
+          <h1 className="mt-1 text-[34px] font-black leading-[0.88] tracking-[-0.065em] sm:text-[44px]">RUNNING<br />ENGINE</h1>
+          <div className="mt-3 text-xs font-bold text-black/45">더 멀리, 더 강하게.</div>
+          <div className="mt-1 text-[10px] font-bold text-black/30">업데이트 {prettyDate(d.generated_at_local ?? d.generated_at ?? report.created_at)}</div>
         </div>
-      </nav>
+        <div className="h-[118px] w-[126px] shrink-0 overflow-hidden rounded-[18px] bg-black sm:h-[132px] sm:w-[148px]">
+          <div className="-mt-3 scale-[0.82] sm:scale-[0.9]"><RunnerMotion compact /></div>
+        </div>
+      </header>
 
       <div onTouchStart={onSwipeStart} onTouchEnd={onSwipeEnd} className="touch-pan-y">
       {tab === "overview" && (
         <div className="mt-5 space-y-4 sm:mt-7 sm:space-y-5">
-          <section className="grid gap-4 lg:grid-cols-[0.85fr_1.55fr]">
-            <div className={`relative overflow-hidden rounded-[28px] border border-black/10 p-6 text-black sm:p-7 ${overallTone === "good" ? "bg-[#8EF7A4]" : overallTone === "warn" ? "bg-[#FFB28F]" : "bg-[#C9C7FF]"}`}>
-              <div className="absolute -right-12 -top-12 h-40 w-40 rounded-full bg-white/5 blur-3xl" />
-              <div className="relative flex items-center justify-between gap-6">
-                <div>
-                  <div className="text-[10px] font-bold uppercase tracking-[0.18em] opacity-50">오늘 몸 상태</div>
-                  <div className="mt-2 text-5xl font-black tracking-[-0.06em] sm:text-6xl">{overallLabel}</div>
-                  <div className="mt-3"><Pill tone={overallTone}>{overallTone === "good" ? "강한 훈련도 검토 가능" : overallTone === "warn" ? "회복 우선" : "무리 없이 진행"}</Pill></div>
+          <section className="grid gap-4 lg:grid-cols-[1.08fr_.92fr]">
+            <div className={`${overallTone === "good" ? "bg-[#2FD07B] text-black" : overallTone === "warn" ? "bg-[#FF3B30] text-white" : "bg-[#116CFF] text-white"} rounded-[20px] border border-black/10 p-5 sm:p-7`}>
+              <div className="flex items-start justify-between gap-5">
+                <div className="min-w-0">
+                  <div className="text-[11px] font-black uppercase tracking-[0.16em] opacity-65">READINESS</div>
+                  <div className="mt-3 text-6xl font-black leading-none tracking-[-0.075em] sm:text-7xl">{ringValue}</div>
+                  <div className="mt-2 text-xl font-black">오늘 몸 상태는 {overallLabel}입니다.</div>
+                  <div className="mt-2 max-w-md text-sm font-bold leading-6 opacity-70">
+                    {overallTone === "good" ? "회복과 피로 균형이 좋아 예정된 훈련을 진행하기 좋습니다." : overallTone === "warn" ? "회복 신호가 낮아 강한 훈련보다 회복을 우선하는 편이 좋습니다." : "큰 경고는 없지만 과도하게 밀어붙이지 않는 편이 좋습니다."}
+                  </div>
                 </div>
-                <div className="relative grid h-28 w-28 shrink-0 place-items-center rounded-full" style={{ background: `conic-gradient(${overallTone === "good" ? "#34d399" : overallTone === "warn" ? "#f59e0b" : "#38bdf8"} ${ringValue * 3.6}deg, #27272a 0deg)` }}>
-                  <div className="grid h-[88px] w-[88px] place-items-center rounded-full bg-[#080808]"><div className="text-center"><div className="text-2xl font-bold">{ringValue}</div><div className="text-[10px] text-zinc-600">READINESS</div></div></div>
+                <div className="relative grid h-24 w-24 shrink-0 place-items-center rounded-full bg-black/10 sm:h-28 sm:w-28">
+                  <div className="text-center"><div className="text-3xl font-black">{ringValue}</div><div className="text-[9px] font-black opacity-50">/100</div></div>
                 </div>
               </div>
+              <div className="mt-6 grid grid-cols-3 gap-px overflow-hidden rounded-[14px] bg-black/15">
+                <div className="bg-white/90 p-3 text-black"><div className="text-[9px] font-black uppercase opacity-45">HRV</div><div className="mt-1 text-xl font-black">{fmt(r.latest_hrv)}</div></div>
+                <div className="bg-white/90 p-3 text-black"><div className="text-[9px] font-black uppercase opacity-45">SLEEP</div><div className="mt-1 text-xl font-black">{fmt(r.latest_sleep_hours)}h</div></div>
+                <div className="bg-white/90 p-3 text-black"><div className="text-[9px] font-black uppercase opacity-45">LOAD</div><div className="mt-1 text-xl font-black">{n(r.latest_atl, 0)}</div></div>
+              </div>
               {recoveryText && (
-                <div className="relative mt-6">
-                  <button
-                    type="button"
-                    onClick={() => setRecoveryExpanded((v) => !v)}
-                    className="block w-full text-left"
-                    aria-expanded={recoveryExpanded}
-                  >
-                    <p className={`${recoveryExpanded ? "" : "line-clamp-4"} whitespace-pre-wrap break-words text-sm font-medium leading-7 opacity-65`}>
-                      {String(recoveryText)}
-                    </p>
+                <div className="mt-5 border-t border-current/20 pt-4">
+                  <button type="button" onClick={() => setRecoveryExpanded((v) => !v)} className="block w-full text-left" aria-expanded={recoveryExpanded}>
+                    <p className={`${recoveryExpanded ? "" : "line-clamp-3"} whitespace-pre-wrap break-words text-sm font-bold leading-6 opacity-70`}>{String(recoveryText)}</p>
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setRecoveryExpanded((v) => !v)}
-                    className="mt-2 rounded-lg px-1 py-1 text-xs font-bold text-black/60 transition hover:text-black"
-                    aria-expanded={recoveryExpanded}
-                  >
-                    {recoveryExpanded ? "접기 ▲" : "전체 보기 ▼"}
-                  </button>
+                  <button type="button" onClick={() => setRecoveryExpanded((v) => !v)} className="mt-2 text-[10px] font-black uppercase tracking-[0.12em] opacity-55">{recoveryExpanded ? "접기" : "전체 보기"}</button>
                 </div>
               )}
             </div>
@@ -1469,8 +1499,8 @@ export default function Home() {
             {signals.map((s) => <MiniMetric key={s.label} icon={s.label === "회복 신호" ? "heart" : s.label === "수면" ? "moon" : "bolt"} label={s.label} value={s.value} detail={s.detail} tone={s.tone} />)}
           </section>
 
-          <section className="grid gap-4 lg:grid-cols-2">
-            <div className="space-y-3">
+          <section className="grid gap-4 lg:grid-cols-[1fr_1fr]">
+            <div className="grid gap-3">
               <ComparisonRow label="주간 거리" current={dist7} baseline={distWeeklyAvg} unit="km" icon="shoe" />
               <ComparisonRow label="주간 상승고도" current={elev7} baseline={elevWeeklyAvg} unit="m" icon="mountain" />
               <ComparisonRow label="주간 훈련 부하" current={load7} baseline={loadWeeklyAvg} unit="" icon="bolt" />
@@ -1479,17 +1509,17 @@ export default function Home() {
           </section>
 
           <section className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-5"><div className="text-sm text-zinc-500">편한 달리기 효율</div><div className="mt-2 text-3xl font-semibold">{fmt(ae.easy_efficiency_vs_baseline_pct, "%")}</div><div className="mt-2 text-xs leading-5 text-zinc-600">최근 easy run이 평소보다 얼마나 효율적인지</div></div>
-            <div className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-5"><div className="text-sm text-zinc-500">롱런 후반 저하</div><div className="mt-2 text-3xl font-semibold">{fmt(lr.latest_durability_decline_pct, "%")}</div><div className="mt-2 text-xs leading-5 text-zinc-600">낮을수록 후반까지 페이스/효율 유지가 좋음</div></div>
-            <div className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-5"><div className="text-sm text-zinc-500">최근 반복주</div><div className="mt-2 text-3xl font-semibold">{ia.status === "ok" ? `${fmt(ia.rep_count)}회` : "—"}</div><div className="mt-2 text-xs leading-5 text-zinc-600">{fmt(ia.median_group_distance_m)}m · 편차 {fmt(ia.pace_coefficient_of_variation_pct, "%")}</div></div>
+            <StatCard label="EASY EFFICIENCY" value={fmt(ae.easy_efficiency_vs_baseline_pct, "%")} sub="최근 편한 달리기가 평소보다 얼마나 효율적인지 보여줍니다." icon="trend" />
+            <StatCard label="DURABILITY" value={fmt(lr.latest_durability_decline_pct, "%")} sub="낮을수록 롱런 후반까지 효율을 잘 유지한 것입니다." icon="shoe" />
+            <StatCard label="INTERVAL" value={ia.status === "ok" ? `${fmt(ia.rep_count)}회` : "—"} sub={`${fmt(ia.median_group_distance_m)}m 반복 · 페이스 편차 ${fmt(ia.pace_coefficient_of_variation_pct, "%")}`} icon="bolt" />
           </section>
         </div>
       )}
 
       {tab === "simple" && (
         <div className="mt-5 space-y-4 sm:mt-7 sm:space-y-5">
-          <section className="rounded-[28px] border border-black/10 bg-[#F4F1E8] p-6 text-black sm:p-8">
-            <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] opacity-50"><Icon name="spark" className="h-4 w-4" />오늘의 쉬운 요약</div>
+          <section className="rounded-[20px] border border-black/10 bg-white p-6 text-black sm:p-8">
+            <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] opacity-50"><Icon name="spark" className="h-4 w-4" />TODAY</div>
             <h2 className="mt-4 max-w-3xl text-3xl font-bold leading-tight tracking-tight sm:text-4xl">
               {overallTone === "good" ? "몸 상태는 좋다. 오늘 계획한 훈련을 해도 괜찮다." : overallTone === "warn" ? "오늘은 기록 욕심보다 회복이 먼저다." : "몸 상태는 무난하다. 예정된 훈련을 과하게만 하지 말자."}
             </h2>
@@ -1497,7 +1527,7 @@ export default function Home() {
 
           <section className="grid gap-4 lg:grid-cols-[1fr_1fr]">
             <div className="space-y-3">
-              <h3 className="px-1 text-sm font-semibold text-zinc-300">왜 이렇게 판단했냐면</h3>
+              <h3 className="px-1 text-sm font-semibold text-black/80">왜 이렇게 판단했냐면</h3>
               <SimpleBullet tone={hrvTone} title={hrvTone === "good" ? "회복 신호가 좋음" : hrvTone === "warn" ? "회복 신호가 평소보다 낮음" : "회복 신호는 평소 수준"} detail={`HRV가 ${fmt(r.latest_hrv)}ms이고 최근 28일 기준 대비 ${fmt(r.hrv_deviation_pct, "%")}야.`} />
               <SimpleBullet tone={sleepTone} title={sleepTone === "good" ? "잠은 충분히 잤음" : sleepTone === "warn" ? "수면이 부족함" : "수면은 무난함"} detail={`최근 수면 ${fmt(r.latest_sleep_hours)}시간, 수면 점수 ${fmt(r.latest_sleep_score)}.`} />
               <SimpleBullet tone={loadTone} title={loadTone === "warn" ? "최근 피로가 많이 쌓임" : loadTone === "good" ? "최근 피로가 많이 쌓인 상태는 아님" : "피로와 체력의 균형은 보통"} detail={`단기 피로(ATL) ${n(r.latest_atl, 1)}, 체력 베이스(CTL) ${n(r.latest_ctl, 1)}.`} />
@@ -1506,32 +1536,32 @@ export default function Home() {
           </section>
 
           <section className="grid gap-4 md:grid-cols-2">
-            <div className="rounded-[26px] border border-zinc-800 bg-zinc-950/70 p-5 sm:p-6">
-              <div className="flex items-center gap-2 text-sm font-semibold"><Icon name="warning" className="h-4 w-4 text-amber-300" />오늘 피하면 좋은 것</div>
+            <div className="rounded-[18px] border border-black/10 bg-white p-5 sm:p-6">
+              <div className="flex items-center gap-2 text-sm font-semibold"><Icon name="warning" className="h-4 w-4 text-[#9A5B00]" />오늘 피하면 좋은 것</div>
               <div className="mt-4 space-y-2">
-                {avoidToday.length ? avoidToday.map((item: unknown, i: number) => <div key={i} className="rounded-xl bg-zinc-900/70 px-4 py-3 text-sm leading-6 text-zinc-300">{String(item)}</div>) : <div className="text-sm text-zinc-500">특별히 피해야 할 훈련이 표시되지 않았어.</div>}
+                {avoidToday.length ? avoidToday.map((item: unknown, i: number) => <div key={i} className="rounded-xl bg-black/[0.04] px-4 py-3 text-sm leading-6 text-black/80">{String(item)}</div>) : <div className="text-sm text-black/50">특별히 피해야 할 훈련이 표시되지 않았어.</div>}
               </div>
             </div>
-            <div className="rounded-[26px] border border-zinc-800 bg-zinc-950/70 p-5 sm:p-6">
-              <div className="flex items-center gap-2 text-sm font-semibold"><Icon name="target" className="h-4 w-4 text-sky-300" />Plan B</div>
-              <p className="mt-4 text-sm leading-7 text-zinc-400">{planB ? String(planB) : "몸이 예상보다 무거우면 거리와 강도를 줄이고 회복 러닝으로 전환."}</p>
+            <div className="rounded-[18px] border border-black/10 bg-white p-5 sm:p-6">
+              <div className="flex items-center gap-2 text-sm font-semibold"><Icon name="target" className="h-4 w-4 text-[#116CFF]" />PLAN B</div>
+              <p className="mt-4 text-sm leading-7 text-black/65">{planB ? String(planB) : "몸이 예상보다 무거우면 거리와 강도를 줄이고 회복 러닝으로 전환."}</p>
             </div>
           </section>
 
           {Array.isArray(next3) && next3.length > 0 && (
-            <section className="rounded-[26px] border border-zinc-800 bg-zinc-950/70 p-5 sm:p-6">
-              <div className="text-sm font-semibold">앞으로 3일</div>
+            <section className="rounded-[18px] border border-black/10 bg-white p-5 sm:p-6">
+              <div className="text-sm font-semibold">NEXT 3 DAYS</div>
               <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                {next3.slice(0, 3).map((item: any, i: number) => <div key={i} className="rounded-2xl bg-zinc-900/70 p-4"><div className="text-xs text-zinc-500">D+{item.day_offset ?? i + 1}</div><div className="mt-2 text-sm leading-6 text-zinc-300">{item.summary ?? renderPrimitive(item)}</div></div>)}
+                {next3.slice(0, 3).map((item: any, i: number) => <div key={i} className="rounded-2xl bg-black/[0.04] p-4"><div className="text-xs text-black/50">D+{item.day_offset ?? i + 1}</div><div className="mt-2 text-sm leading-6 text-black/80">{item.summary ?? renderPrimitive(item)}</div></div>)}
               </div>
             </section>
           )}
 
           <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <MiniMetric icon="heart" label="HRV = 회복 신호" value={`${fmt(r.latest_hrv)} ms`} detail="평소보다 높으면 대체로 회복이 잘 된 신호" tone={hrvTone} />
+            <MiniMetric icon="heart" label="HRV" value={`${fmt(r.latest_hrv)} ms`} detail="평소보다 높으면 대체로 회복이 잘 된 신호" tone={hrvTone} />
             <MiniMetric icon="heart" label="안정 심박" value={`${fmt(r.latest_resting_hr)} bpm`} detail="내 평소보다 높아지면 피로/스트레스 신호일 수 있음" tone={rhrTone} />
-            <MiniMetric icon="bolt" label="ATL = 단기 피로" value={n(r.latest_atl, 1)} detail="최근 며칠의 훈련 피로가 얼마나 쌓였는지" tone={loadTone} />
-            <MiniMetric icon="trend" label="CTL = 체력 베이스" value={n(r.latest_ctl, 1)} detail="최근 몇 주간 쌓인 훈련 기반을 보여주는 값" tone="neutral" />
+            <MiniMetric icon="bolt" label="ATL" value={n(r.latest_atl, 1)} detail="최근 며칠의 훈련 피로가 얼마나 쌓였는지" tone={loadTone} />
+            <MiniMetric icon="trend" label="CTL" value={n(r.latest_ctl, 1)} detail="최근 몇 주간 쌓인 훈련 기반을 보여주는 값" tone="neutral" />
           </section>
         </div>
       )}
@@ -1569,108 +1599,82 @@ export default function Home() {
 
         return (
           <div className="mt-5 space-y-4 sm:mt-7 sm:space-y-5">
-            <section className="rounded-[28px] border border-zinc-800 bg-zinc-950/75 p-4 sm:p-5">
-              <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-end">
-                <div className="min-w-0">
-                  <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-600">TRAINING CONTROL</div>
-                  <div className="mt-3 grid gap-3 sm:grid-cols-3">
-                    <div>
-                      <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-600">DAY</div>
-                      <div className="grid grid-cols-2 gap-1 rounded-2xl bg-black p-1">
-                        <button onClick={() => setTrainingDay("tuesday")} className={`rounded-xl px-3 py-2.5 text-xs font-bold transition ${trainingDay === "tuesday" ? "bg-[#8EE8FF] text-black" : "text-zinc-500"}`}>화요일 평지</button>
-                        <button onClick={() => setTrainingDay("thursday")} className={`rounded-xl px-3 py-2.5 text-xs font-bold transition ${trainingDay === "thursday" ? "bg-[#FFE348] text-black" : "text-zinc-500"}`}>목요일 업힐</button>
-                      </div>
-                    </div>
-                    <div>
-                      <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-600">GROUP</div>
-                      <div className="grid grid-cols-3 gap-1 rounded-2xl bg-black p-1">
-                        {(Object.keys(trainingGroupLabels) as TrainingGroup[]).map((group) => (
-                          <button key={group} onClick={() => setTrainingGroup(group)} className={`rounded-xl px-2 py-2.5 text-xs font-bold transition ${trainingGroup === group ? "bg-white text-black" : "text-zinc-500"}`}>{trainingGroupLabels[group]}</button>
-                        ))}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-600">VENUE</div>
-                      <div className="grid grid-cols-2 gap-1 rounded-2xl bg-black p-1">
-                        {(Object.keys(trainingVenueLabels) as TrainingVenue[]).map((venue) => (
-                          <button key={venue} onClick={() => setTrainingVenue(venue)} className={`rounded-xl px-3 py-2.5 text-xs font-bold transition ${trainingVenue === venue ? "bg-[#C9C7FF] text-black" : "text-zinc-500"}`}>{trainingVenueLabels[venue]}</button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 lg:justify-end">
-                  <span className={`rounded-full border px-3 py-1.5 text-xs font-bold ${toneClasses[selectedTone].badge}`}>{executionLabel}</span>
-                </div>
+            <section>
+              <div className="flex flex-wrap items-end justify-between gap-3">
+                <div><div className="text-[11px] font-black uppercase tracking-[0.18em] text-black/40">TRAINING</div><h2 className="mt-1 text-4xl font-black tracking-[-0.065em] sm:text-5xl">훈련 계획</h2></div>
+                <Pill tone={selectedTone}>{executionLabel}</Pill>
               </div>
-              {trainingDay === "thursday" && <div className="mt-3 text-[11px] leading-5 text-zinc-600">목요일 업힐은 조별 페이스가 아니라 공통 세션이므로 특조/1조/2조 선택은 화요일 세션에만 반영돼.</div>}
+              <p className="mt-2 text-sm font-bold leading-6 text-black/50">이번 주 품질훈련을 한 화면에서 고르고 바로 확인합니다.</p>
             </section>
 
-            <section className="rounded-[30px] border border-zinc-800 bg-zinc-950/70 p-4 sm:p-6">
-              <div className="flex flex-wrap items-end justify-between gap-4">
-                <div>
-                  <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-600">WEEK {plan.week} · {plan.focus}</div>
-                  <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">{selectedDate} · {selectedTitle}</h3>
-                  <div className="mt-2 text-sm leading-6 text-zinc-500">{executionText}</div>
+            <section className="grid gap-3 rounded-[20px] border border-black/10 bg-white p-4 sm:grid-cols-3 sm:p-5">
+              <div>
+                <div className="mb-2 text-[9px] font-black uppercase tracking-[0.15em] text-black/35">DAY</div>
+                <div className="grid grid-cols-2 gap-1 rounded-[14px] bg-black/[0.05] p-1">
+                  <button onClick={() => setTrainingDay("tuesday")} className={`rounded-[11px] px-3 py-2.5 text-xs font-black transition ${trainingDay === "tuesday" ? "bg-[#116CFF] text-white" : "text-black/45"}`}>화요일</button>
+                  <button onClick={() => setTrainingDay("thursday")} className={`rounded-[11px] px-3 py-2.5 text-xs font-black transition ${trainingDay === "thursday" ? "bg-[#FFD51E] text-black" : "text-black/45"}`}>목요일</button>
                 </div>
-                <div className="text-right text-[11px] leading-5 text-zinc-600">{trainingGroupLabels[trainingGroup]} · {trainingVenueLabels[trainingVenue]}<br />{raceModeLabels[raceMode]}</div>
               </div>
-
-              <div className="mt-5">
-                <TrainingInfographicCard spec={selectedSpec} day={trainingDay} venue={trainingVenue} status={selectedStatus} />
+              <div>
+                <div className="mb-2 text-[9px] font-black uppercase tracking-[0.15em] text-black/35">GROUP</div>
+                <div className="grid grid-cols-3 gap-1 rounded-[14px] bg-black/[0.05] p-1">
+                  {(Object.keys(trainingGroupLabels) as TrainingGroup[]).map((group) => <button key={group} onClick={() => setTrainingGroup(group)} className={`rounded-[11px] px-2 py-2.5 text-xs font-black transition ${trainingGroup === group ? "bg-[#FF3B30] text-white" : "text-black/45"}`}>{trainingGroupLabels[group]}</button>)}
+                </div>
               </div>
-
-              <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                <div className="rounded-[22px] border border-zinc-800 bg-black/35 p-4"><div className="text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-600">WARM UP</div><div className="mt-2 text-sm font-semibold leading-6 text-zinc-300">15–20분 easy + 러닝드릴 + 20초 스트라이드 4회</div></div>
-                <div className="rounded-[22px] border border-zinc-800 bg-black/35 p-4"><div className="text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-600">STOP SIGNAL</div><div className="mt-2 text-sm font-semibold leading-6 text-zinc-300">폼 붕괴 · 목표 대비 3% 이상 저하 · 비정상 어지럼이면 즉시 종료</div></div>
-                <div className="rounded-[22px] border border-zinc-800 bg-black/35 p-4"><div className="text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-600">COOL DOWN</div><div className="mt-2 text-sm font-semibold leading-6 text-zinc-300">10–15분 easy. 다음날은 완전 easy 또는 휴식</div></div>
+              <div>
+                <div className="mb-2 text-[9px] font-black uppercase tracking-[0.15em] text-black/35">MODE</div>
+                <div className="grid grid-cols-2 gap-1 rounded-[14px] bg-black/[0.05] p-1">
+                  {(Object.keys(trainingVenueLabels) as TrainingVenue[]).map((venue) => <button key={venue} onClick={() => setTrainingVenue(venue)} className={`rounded-[11px] px-3 py-2.5 text-[11px] font-black transition ${trainingVenue === venue ? "bg-black text-white" : "text-black/45"}`}>{trainingVenueLabels[venue]}</button>)}
+                </div>
               </div>
-
-              <div className="mt-4 rounded-[22px] border border-zinc-800 bg-black/25 p-4 text-sm leading-6 text-zinc-500"><span className="font-semibold text-zinc-300">{raceModeLabels[raceMode]} 보정 · </span>{modeModifier[raceMode]}</div>
             </section>
 
-            <section className="rounded-[28px] border border-zinc-800 bg-zinc-950/70 p-5 sm:p-6">
+            <section>
+              <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+                <div><div className="text-[10px] font-black uppercase tracking-[0.15em] text-black/35">WEEK {plan.week}</div><h3 className="mt-1 text-2xl font-black tracking-[-0.045em]">{selectedDate} · {selectedTitle}</h3></div>
+                <div className="text-right text-[10px] font-black leading-5 text-black/35">{trainingGroupLabels[trainingGroup]} · {trainingVenueLabels[trainingVenue]}<br />{raceModeLabels[raceMode]}</div>
+              </div>
+              <TrainingInfographicCard spec={selectedSpec} day={trainingDay} venue={trainingVenue} status={selectedStatus} />
+              <p className="mt-3 text-xs font-bold leading-5 text-black/45">{executionText}</p>
+              {trainingDay === "thursday" && <p className="mt-1 text-[10px] font-bold leading-5 text-black/35">목요일 업힐은 공통 세션이라 특조·1조·2조 선택은 화요일 세션에만 반영됩니다.</p>}
+            </section>
+
+            <section className="grid gap-3 sm:grid-cols-3">
+              <div className="rounded-[18px] border border-black/10 bg-white p-4"><div className="text-[10px] font-black uppercase tracking-[0.15em] text-[#116CFF]">WARM UP</div><div className="mt-2 text-sm font-bold leading-6">15–20분 이지 + 러닝 드릴 + 20초 스트라이드 4회</div></div>
+              <div className="rounded-[18px] border border-black/10 bg-white p-4"><div className="text-[10px] font-black uppercase tracking-[0.15em] text-[#FF3B30]">STOP</div><div className="mt-2 text-sm font-bold leading-6">폼 붕괴, 목표 대비 3% 이상 저하, 비정상 어지럼이면 즉시 종료</div></div>
+              <div className="rounded-[18px] border border-black/10 bg-white p-4"><div className="text-[10px] font-black uppercase tracking-[0.15em] text-[#2B2B2B]">COOL DOWN</div><div className="mt-2 text-sm font-bold leading-6">10–15분 이지. 다음날은 완전 이지 또는 휴식</div></div>
+            </section>
+
+            <section className="rounded-[20px] border border-black/10 bg-white p-5 sm:p-6">
               <div className="flex flex-wrap items-center justify-between gap-4">
-                <div><div className="text-sm text-zinc-500">8주 전체 보기</div><h3 className="mt-1 text-xl font-semibold">{trainingGroupLabels[trainingGroup]} · {trainingVenueLabels[trainingVenue]}</h3></div>
-                <div className="flex gap-1 rounded-2xl bg-black p-1">
-                  {(Object.keys(raceModeLabels) as RaceMode[]).map((mode) => <button key={mode} onClick={() => setRaceMode(mode)} className={`rounded-xl px-2.5 py-2 text-[10px] font-bold transition ${raceMode === mode ? "bg-white text-black" : "text-zinc-600"}`}>{raceModeLabels[mode]}</button>)}
+                <div><div className="text-[10px] font-black uppercase tracking-[0.15em] text-black/35">8 WEEK PLAN</div><h3 className="mt-1 text-xl font-black">{trainingGroupLabels[trainingGroup]} · {trainingVenueLabels[trainingVenue]}</h3></div>
+                <div className="flex flex-wrap gap-1 rounded-[14px] bg-black/[0.05] p-1">
+                  {(Object.keys(raceModeLabels) as RaceMode[]).map((mode) => <button key={mode} onClick={() => setRaceMode(mode)} className={`rounded-[10px] px-2.5 py-2 text-[9px] font-black transition ${raceMode === mode ? "bg-black text-white" : "text-black/40"}`}>{raceModeLabels[mode]}</button>)}
                 </div>
               </div>
-              <div className="mt-5 grid gap-3 lg:grid-cols-2">
+              <div className="mt-5 grid gap-2 lg:grid-cols-2">
                 {detailedTrainingCycle.map((w, i) => {
                   const tue = w.tuesdayGroups[trainingGroup][trainingVenue];
                   const thu = trainingVenue === "track" ? w.thursdayOutdoor : w.thursdayTreadmill;
                   return (
-                    <div key={w.week} className={`rounded-[22px] border p-4 ${i === currentWeekIndex ? "border-violet-500/60 bg-violet-950/20" : "border-zinc-900 bg-black/25"}`}>
-                      <div className="flex items-center justify-between gap-3"><div className="text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-600">WEEK {w.week}</div>{i === currentWeekIndex && <span className="rounded-full bg-white px-2.5 py-1 text-[9px] font-black text-black">CURRENT</span>}</div>
-                      <div className="mt-2 font-bold text-zinc-200">{w.focus}</div>
-                      <div className="mt-4 grid gap-3">
-                        <button type="button" onClick={() => { setTrainingDay("tuesday"); }} className="rounded-2xl bg-cyan-950/20 p-3 text-left">
-                          <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-cyan-400">TUE</div>
-                          <div className="mt-1 text-sm font-semibold leading-6 text-zinc-300">{tue.work}</div>
-                          <div className="mt-1 text-xs leading-5 text-zinc-600">{tue.lap400 ?? tue.pace}</div>
-                        </button>
-                        <button type="button" onClick={() => { setTrainingDay("thursday"); }} className="rounded-2xl bg-amber-950/20 p-3 text-left">
-                          <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-amber-400">THU</div>
-                          <div className="mt-1 text-sm font-semibold leading-6 text-zinc-300">{thu.work}</div>
-                          <div className="mt-1 text-xs leading-5 text-zinc-600">{thu.pace}</div>
-                        </button>
+                    <div key={w.week} className={`rounded-[16px] border p-4 ${i === currentWeekIndex ? "border-black bg-[#FFD51E]" : "border-black/10 bg-[#F8F6F0]"}`}>
+                      <div className="flex items-center justify-between"><div className="text-[9px] font-black uppercase tracking-[0.15em] text-black/40">WEEK {w.week}</div>{i === currentWeekIndex && <span className="rounded-full bg-black px-2 py-1 text-[8px] font-black text-white">NOW</span>}</div>
+                      <div className="mt-1 text-base font-black">{w.focus}</div>
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        <button type="button" onClick={() => setTrainingDay("tuesday")} className="rounded-[12px] bg-white/80 p-3 text-left"><div className="text-[9px] font-black text-[#116CFF]">TUE</div><div className="mt-1 text-xs font-black leading-5">{tue.work}</div><div className="mt-1 text-[10px] font-bold text-black/40">{tue.lap400 ?? tue.pace}</div></button>
+                        <button type="button" onClick={() => setTrainingDay("thursday")} className="rounded-[12px] bg-white/80 p-3 text-left"><div className="text-[9px] font-black text-[#FF3B30]">THU</div><div className="mt-1 text-xs font-black leading-5">{thu.work}</div><div className="mt-1 text-[10px] font-bold text-black/40">{thu.pace}</div></button>
                       </div>
                     </div>
                   );
                 })}
               </div>
+              <div className="mt-4 rounded-[14px] bg-black p-4 text-white"><div className="text-[9px] font-black uppercase tracking-[0.14em] text-white/45">RACE MODE</div><div className="mt-1 text-sm font-bold leading-6"><span className="text-[#FFD51E]">{raceModeLabels[raceMode]}</span> · {modeModifier[raceMode]}</div></div>
             </section>
 
-            <section className="rounded-[28px] border border-zinc-800 bg-zinc-950/70 p-5 sm:p-6">
-              <div className="text-sm text-zinc-500">컨디션 자동 조정</div>
-              <h3 className="mt-1 text-xl font-semibold">페이스보다 볼륨을 먼저 조절</h3>
-              <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                <SimpleBullet tone="good" title="GO · FULL" detail="HRV·수면·ATL/CTL이 정상 범위면 기본 세트 수행. 추가 세트는 마지막까지 폼이 좋을 때만." />
-                <SimpleBullet tone="neutral" title="CAUTION · 75%" detail="목표 속도는 유지하고 마지막 1–2세트 삭제. 목요일은 추가로 1세트 더 감량 가능." />
-                <SimpleBullet tone="warn" title="HOLD" detail="HRV 급락, 수면 6시간 미만, ATL/CTL 과도 또는 어지럼이 있으면 강도 취소." />
-              </div>
-              <div className="mt-4 text-xs leading-5 text-zinc-600">현재: HRV {fmt(r.latest_hrv)} · HRV 편차 {fmt(r.hrv_deviation_pct, "%")} · 수면 {fmt(r.latest_sleep_hours)}h · ATL/CTL {n(r.latest_atl,1)}/{n(r.latest_ctl,1)}</div>
+            <section className="grid gap-3 sm:grid-cols-3">
+              <SimpleBullet tone="good" title="FULL" detail="회복 지표가 정상 범위면 기본 세트를 수행합니다." />
+              <SimpleBullet tone="neutral" title="75%" detail="속도는 유지하고 마지막 1–2세트를 줄입니다." />
+              <SimpleBullet tone="warn" title="HOLD" detail="HRV 급락, 수면 부족, 과도한 부하 또는 어지럼이 있으면 강도를 취소합니다." />
             </section>
           </div>
         );
@@ -1700,167 +1704,164 @@ export default function Home() {
 
         return (
           <div className="mt-5 space-y-4 sm:mt-7 sm:space-y-5">
-            <section className="relative overflow-hidden rounded-[28px] border border-black/10 bg-[#E7FF43] p-6 text-black sm:p-8">
-              <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-cyan-400/10 blur-3xl" />
-              <div className="relative grid gap-8 lg:grid-cols-[1.05fr_.95fr] lg:items-center">
-                <div>
-                  <div className="flex flex-wrap items-center gap-2 text-xs uppercase tracking-[0.24em] text-zinc-500"><span className="h-2 w-2 rounded-full bg-cyan-300" />Peak / Progress</div>
-                  <div className="mt-5 flex items-end gap-3">
-                    <div className="text-6xl font-bold tracking-[-0.06em] sm:text-7xl">{match === null ? "—" : n(match, 0)}</div>
-                    <div className="pb-2 text-lg font-bold opacity-45">% OF PEAK</div>
-                  </div>
-                  <p className="mt-4 max-w-xl text-sm font-medium leading-7 opacity-60">
-                    {match === null ? "페이지는 준비됐어. Garmin 전체 이력 → Supabase 백필 → Peak Engine 계산이 끝나면 현재 몸 상태를 과거 최고점과 자동 비교해." : match >= 100 ? "현재가 기존 최고점을 넘어선 새로운 최고 상태야." : match >= 95 ? "역대 최고점에 거의 도달한 상태야. 레이스 특이 자극만 잘 맞추면 돼." : match >= 85 ? "좋은 빌드업 구간이지만 몇 축은 아직 이전 최고점 아래야." : "현재는 최고점 대비 빌드업 중이야. 부족한 축을 확인해서 올리는 단계야."}
-                  </p>
-                  <div className="mt-6 flex flex-wrap gap-2">
-                    {(Object.keys(raceModeLabels) as RaceMode[]).map((mode) => <button key={mode} onClick={() => setRaceMode(mode)} className={`rounded-full border px-3 py-2 text-xs font-semibold transition ${raceMode === mode ? "border-cyan-500/70 bg-cyan-950/70 text-cyan-200" : "border-zinc-800 bg-black/30 text-zinc-500 hover:text-zinc-300"}`}>{raceModeLabels[mode]}</button>)}
-                  </div>
+            <section className="grid gap-4 lg:grid-cols-[1.05fr_.95fr]">
+              <div className="rounded-[20px] border border-black/10 bg-white p-5 sm:p-7">
+                <div className="flex flex-wrap items-end justify-between gap-4">
+                  <div><div className="text-[11px] font-black uppercase tracking-[0.17em] text-black/40">PEAK</div><div className="mt-2 flex items-end gap-3"><div className="text-7xl font-black leading-none tracking-[-0.08em]">{match === null ? "—" : n(match, 0)}</div><div className="pb-2 text-lg font-black text-black/35">%</div></div></div>
+                  <div className="max-w-[260px] text-right text-sm font-bold leading-6 text-black/55">{match === null ? "과거 이력을 계산하면 현재 상태를 최고점과 비교합니다." : match >= 100 ? "현재가 새로운 최고 상태입니다." : match >= 95 ? "역대 최고점에 거의 도달했습니다." : match >= 85 ? "좋은 빌드업 구간입니다." : "현재는 최고점으로 올라가는 중입니다."}</div>
                 </div>
-                <RadarChart current={currentAxes} peak={bestAxes} />
+                <div className="mt-5 flex flex-wrap gap-1 rounded-[14px] bg-black/[0.05] p-1">
+                  {(Object.keys(raceModeLabels) as RaceMode[]).map((mode) => <button key={mode} onClick={() => setRaceMode(mode)} className={`rounded-[10px] px-3 py-2 text-[9px] font-black transition ${raceMode === mode ? "bg-black text-white" : "text-black/40"}`}>{raceModeLabels[mode]}</button>)}
+                </div>
+                <div className="mt-4"><RadarChart current={currentAxes} peak={bestAxes} /></div>
+              </div>
+
+              <div className="rounded-[20px] border border-black/10 bg-black p-5 text-white sm:p-7">
+                <div className="flex items-start justify-between gap-4"><div><div className="text-[10px] font-black uppercase tracking-[0.16em] text-white/45">UTMB INDEX</div><div className="mt-2 text-7xl font-black leading-none tracking-[-0.08em]">{utmb?.overall_index ?? "—"}</div></div><div className="text-right text-[10px] font-bold leading-5 text-white/35">{utmb ? `갱신 ${prettyDate(utmb.captured_at)}` : utmbLoading ? "확인 중" : "동기화 대기"}</div></div>
+                <div className="mt-6 grid grid-cols-2 gap-2">
+                  {[["20K", utmb?.index_20k, "bg-[#116CFF]"], ["50K", utmb?.index_50k, "bg-[#FF3B30]"], ["100K", utmb?.index_100k, "bg-[#FFD51E] text-black"], ["100M", utmb?.index_100m, "bg-[#2FD07B] text-black"]].map(([label, value, cls]) => <div key={String(label)} className={`rounded-[14px] p-4 ${String(cls)}`}><div className="text-[9px] font-black uppercase opacity-55">{String(label)}</div><div className="mt-1 text-3xl font-black">{typeof value === "number" ? value : "—"}</div></div>)}
+                </div>
+                <div className="mt-4 grid grid-cols-3 gap-px overflow-hidden rounded-[12px] bg-white/10 text-center"><div className="bg-white/5 p-3"><div className="text-[8px] font-black text-white/35">BEST</div><div className="mt-1 font-black">{utmb?.best_score ?? "—"}</div></div><div className="bg-white/5 p-3"><div className="text-[8px] font-black text-white/35">FINISH</div><div className="mt-1 font-black">{utmb?.finished_races ?? "—"}</div></div><div className="bg-white/5 p-3"><div className="text-[8px] font-black text-white/35">TOP10</div><div className="mt-1 font-black">{utmb?.top10 ?? "—"}</div></div></div>
               </div>
             </section>
 
-            <section className="grid gap-4 lg:grid-cols-[1.1fr_.9fr]">
-              <div className="relative overflow-hidden rounded-[28px] border border-orange-900/40 bg-gradient-to-br from-orange-950/25 via-zinc-950 to-black p-5 sm:p-6">
-                <div className="absolute -right-16 -top-16 h-44 w-44 rounded-full bg-orange-400/10 blur-3xl" />
-                <div className="relative">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <div className="text-xs uppercase tracking-[0.22em] text-orange-300/70">UTMB INDEX</div>
-                      <div className="mt-2 flex items-end gap-3">
-                        <div className="text-6xl font-bold tracking-[-0.06em]">{utmb?.overall_index ?? "—"}</div>
-                        <div className="pb-2 text-sm text-zinc-500">OVERALL</div>
-                      </div>
-                    </div>
-                    <div className="rounded-full border border-zinc-800 bg-black/40 px-3 py-2 text-[11px] text-zinc-500">{utmb ? `갱신 ${prettyDate(utmb.captured_at)}` : utmbLoading ? "UTMB 확인 중..." : "동기화 대기"}</div>
-                  </div>
-
-                  <div className="mt-5 grid grid-cols-4 gap-2">
-                    {[
-                      ["20K", utmb?.index_20k],
-                      ["50K", utmb?.index_50k],
-                      ["100K", utmb?.index_100k],
-                      ["100M", utmb?.index_100m],
-                    ].map(([label, value]) => (
-                      <div key={String(label)} className="rounded-2xl border border-zinc-800/80 bg-black/35 p-3">
-                        <div className="text-[10px] text-zinc-600">{label}</div>
-                        <div className="mt-1 text-xl font-semibold">{typeof value === "number" ? value : "—"}</div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="mt-4 flex flex-wrap gap-2 text-xs text-zinc-500">
-                    <span className="rounded-full border border-zinc-800 px-3 py-1.5">Best score {utmb?.best_score ?? "—"}</span>
-                    <span className="rounded-full border border-zinc-800 px-3 py-1.5">Finished {utmb?.finished_races ?? "—"}</span>
-                    <span className="rounded-full border border-zinc-800 px-3 py-1.5">Top 10 {utmb?.top10 ?? "—"}</span>
-                  </div>
-                </div>
-              </div>
-
-              {utmb?.korea_men_rank_est || utmb?.korea_age_rank_est ? (
-                <div className="rounded-[28px] border border-zinc-800 bg-zinc-950/70 p-5 sm:p-6">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <div className="text-xs uppercase tracking-[0.22em] text-zinc-600">KOREA RANK</div>
-                      <h3 className="mt-1 text-xl font-semibold">대한민국에서 지금 어디쯤?</h3>
-                    </div>
-                    <Icon name="target" className="h-5 w-5 text-zinc-600" />
-                  </div>
-
-                  <div className="mt-5 grid grid-cols-2 gap-3">
-                    <div className="rounded-2xl bg-black/40 p-4">
-                      <div className="text-xs text-zinc-500">한국 남자 · Overall</div>
-                      <div className="mt-2 text-4xl font-semibold tracking-tight">{utmb?.korea_men_rank_est ? `#${utmb.korea_men_rank_est}` : "—"}</div>
-                      <div className="mt-2 text-[11px] text-zinc-600">{utmb?.korea_men_rank_low && utmb?.korea_men_rank_high ? `추정 범위 #${utmb.korea_men_rank_low}–#${utmb.korea_men_rank_high}` : "—"}</div>
-                    </div>
-                    <div className="rounded-2xl bg-black/40 p-4">
-                      <div className="text-xs text-zinc-500">한국 남자 · {utmb?.age_group ?? "35–39"}</div>
-                      <div className="mt-2 text-4xl font-semibold tracking-tight">{utmb?.korea_age_rank_est ? `#${utmb.korea_age_rank_est}` : "—"}</div>
-                      <div className="mt-2 text-[11px] text-zinc-600">{utmb?.korea_age_rank_low && utmb?.korea_age_rank_high ? `추정 범위 #${utmb.korea_age_rank_low}–#${utmb.korea_age_rank_high}` : "—"}</div>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="rounded-[28px] border border-zinc-800 bg-zinc-950/70 p-5 sm:p-6">
-                  <div className="text-xs uppercase tracking-[0.22em] text-zinc-600">KOREA RANK</div>
-                  <h3 className="mt-1 text-xl font-semibold">국가 순위 자동 연동 준비 중</h3>
-                  <p className="mt-4 text-sm leading-6 text-zinc-500">UTMB가 국가별 순위를 안정적으로 조회할 수 있는 공개 방식은 제공하지 않아, 부정확한 숫자는 표시하지 않도록 잠시 숨겼어.</p>
-                </div>
-              )}
-            </section>
+            {(utmb?.korea_men_rank_est || utmb?.korea_age_rank_est) && <section className="grid gap-3 sm:grid-cols-2"><div className="rounded-[18px] border border-black/10 bg-[#116CFF] p-5 text-white"><div className="text-[10px] font-black uppercase tracking-[0.14em] opacity-55">KOREA RANK</div><div className="mt-2 text-5xl font-black">{utmb?.korea_men_rank_est ? `#${utmb.korea_men_rank_est}` : "—"}</div><div className="mt-2 text-sm font-bold opacity-70">한국 남자 Overall</div></div><div className="rounded-[18px] border border-black/10 bg-[#FFD51E] p-5 text-black"><div className="text-[10px] font-black uppercase tracking-[0.14em] opacity-55">AGE RANK</div><div className="mt-2 text-5xl font-black">{utmb?.korea_age_rank_est ? `#${utmb.korea_age_rank_est}` : "—"}</div><div className="mt-2 text-sm font-bold opacity-70">한국 남자 {utmb?.age_group ?? "35–39"}</div></div></section>}
 
             <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              <PeakScoreCard label="회복 상태" score={safeNumber(latestPeak?.recovery_score)} peakDate={bestPeak?.metric_date ?? null} detail="HRV · 안정 심박 · 수면 · 최근 피로 균형" />
-              <PeakScoreCard label="기본 엔진" score={safeNumber(latestPeak?.aerobic_score)} peakDate={bestPeak?.metric_date ?? null} detail="28일 거리 · 시간 · easy 효율 기반" />
-              <PeakScoreCard label="스피드 / 역치" score={safeNumber(latestPeak?.speed_score)} peakDate={bestPeak?.metric_date ?? null} detail="최근 인터벌 품질과 빠른 페이스 노출" />
-              <PeakScoreCard label="오르막" score={safeNumber(latestPeak?.climbing_score)} peakDate={bestPeak?.metric_date ?? null} detail="상승고도 · 트레일 부하 · 업힐 적응" />
-              <PeakScoreCard label="롱런 내구성" score={safeNumber(latestPeak?.durability_score)} peakDate={bestPeak?.metric_date ?? null} detail="decoupling과 후반 효율 저하" />
-              <PeakScoreCard label="훈련 적응" score={safeNumber(latestPeak?.training_state_score)} peakDate={bestPeak?.metric_date ?? null} detail="최근 부하와 체력 베이스의 균형" />
+              <PeakScoreCard label="RECOVERY" score={safeNumber(latestPeak?.recovery_score)} peakDate={bestPeak?.metric_date ?? null} detail="HRV, 안정 심박, 수면, 최근 피로 균형" />
+              <PeakScoreCard label="AEROBIC" score={safeNumber(latestPeak?.aerobic_score)} peakDate={bestPeak?.metric_date ?? null} detail="28일 거리, 시간, 이지 효율 기반" />
+              <PeakScoreCard label="SPEED" score={safeNumber(latestPeak?.speed_score)} peakDate={bestPeak?.metric_date ?? null} detail="최근 인터벌 품질과 빠른 페이스 노출" />
+              <PeakScoreCard label="CLIMB" score={safeNumber(latestPeak?.climbing_score)} peakDate={bestPeak?.metric_date ?? null} detail="상승고도, 트레일 부하, 업힐 적응" />
+              <PeakScoreCard label="DURABILITY" score={safeNumber(latestPeak?.durability_score)} peakDate={bestPeak?.metric_date ?? null} detail="롱런 후반 효율 유지 능력" />
+              <PeakScoreCard label="ADAPTATION" score={safeNumber(latestPeak?.training_state_score)} peakDate={bestPeak?.metric_date ?? null} detail="최근 부하와 체력 베이스의 균형" />
             </section>
 
-            <section className="grid gap-4 lg:grid-cols-[1.2fr_.8fr]">
-              <div className="rounded-[28px] border border-zinc-800 bg-zinc-950/70 p-5 sm:p-6">
-                <div className="flex items-center justify-between gap-4"><div><div className="text-sm text-zinc-500">현재 계산 입력값</div><h3 className="mt-1 text-xl font-semibold">Peak Engine이 볼 데이터</h3></div><Icon name="trend" className="h-5 w-5 text-zinc-600" /></div>
-                <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                  {provisionalNotes.map((item) => <div key={item.label} className="rounded-2xl bg-black/40 p-4"><div className="text-xs text-zinc-500">{item.label}</div><div className="mt-2 text-2xl font-semibold">{item.value}</div><div className="mt-2 text-xs leading-5 text-zinc-600">{item.detail}</div></div>)}
-                </div>
-              </div>
-              <div className="rounded-[28px] border border-zinc-800 bg-zinc-950/70 p-5 sm:p-6">
-                <div className="text-sm text-zinc-500">상태</div>
-                <h3 className="mt-1 text-xl font-semibold">히스토리 계산 준비</h3>
-                <div className="mt-5 space-y-3">
-                  <SimpleBullet tone="good" title="PEAK UI 준비 완료" detail="사이트 페이지는 지금부터 사용할 수 있어." />
-                  <SimpleBullet tone={peakRows.length ? "good" : "neutral"} title={peakRows.length ? "Peak history 연결됨" : "과거 이력 계산 대기"} detail={peakRows.length ? `${peakRows.length}일치 스냅샷을 불러왔어.` : "Intervals 전체 가져오기 완료 후 Full History Backfill과 Peak Engine을 돌리면 자동으로 채워져."} />
-                  <SimpleBullet tone="neutral" title={`${raceModeLabels[raceMode]} 기준`} detail="레이스 종류에 따라 거리·스피드·오르막·내구성 가중치를 다르게 적용할 예정." />
-                </div>
-                {peakLoading && <div className="mt-4 text-xs text-cyan-400">Peak history 확인 중...</div>}
-              </div>
+            <section className="rounded-[20px] border border-black/10 bg-white p-5 sm:p-6">
+              <div className="flex items-end justify-between gap-4"><div><div className="text-[10px] font-black uppercase tracking-[0.15em] text-black/35">ENGINE INPUT</div><h3 className="mt-1 text-xl font-black">현재 계산에 쓰는 데이터</h3></div><Icon name="trend" className="h-5 w-5 text-black/30" /></div>
+              <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">{provisionalNotes.map((item, i) => <div key={item.label} className={`${i === 0 ? "bg-[#FF3B30] text-white" : i === 1 ? "bg-[#116CFF] text-white" : i === 2 ? "bg-[#FFD51E] text-black" : "bg-[#2FD07B] text-black"} rounded-[14px] p-4`}><div className="text-[9px] font-black uppercase opacity-55">{item.label}</div><div className="mt-2 text-2xl font-black">{item.value}</div><div className="mt-2 text-[10px] font-bold leading-5 opacity-60">{item.detail}</div></div>)}</div>
             </section>
 
-            {peakRows.length > 1 && (
-              <section className="rounded-[28px] border border-zinc-800 bg-zinc-950/70 p-5 sm:p-6">
-                <div className="flex items-center justify-between gap-4"><div><div className="text-sm text-zinc-500">Form timeline</div><h3 className="mt-1 text-xl font-semibold">최고점으로 가는 흐름</h3></div><div className="text-xs text-zinc-600">{raceModeLabels[raceMode]}</div></div>
-                <div className="mt-6 flex h-40 items-end gap-1 overflow-hidden">
-                  {peakRows.slice(-90).map((row, i) => { const score = safeNumber(row.overall_score) ?? 0; return <div key={`${row.metric_date}-${i}`} className="min-w-0 flex-1 rounded-t-sm bg-cyan-500/60" style={{ height: `${Math.max(4, clamp(score, 0, 110) / 110 * 100)}%` }} title={`${row.metric_date}: ${score}`} />; })}
-                </div>
-              </section>
-            )}
+            {peakRows.length > 1 && <section className="rounded-[20px] border border-black/10 bg-white p-5 sm:p-6"><div className="flex items-end justify-between"><div><div className="text-[10px] font-black uppercase tracking-[0.15em] text-black/35">FORM</div><h3 className="mt-1 text-xl font-black">최고점으로 가는 흐름</h3></div><div className="text-[10px] font-black text-black/35">{raceModeLabels[raceMode]}</div></div><div className="mt-6 flex h-40 items-end gap-1 overflow-hidden">{peakRows.slice(-90).map((row, i) => { const score = safeNumber(row.overall_score) ?? 0; return <div key={`${row.metric_date}-${i}`} className="min-w-0 flex-1 bg-[#116CFF]" style={{ height: `${Math.max(4, clamp(score, 0, 110) / 110 * 100)}%` }} title={`${row.metric_date}: ${score}`} />; })}</div></section>}
           </div>
         );
       })()}
 
       {tab === "detail" && (
         <div className="mt-5 space-y-4 sm:mt-7 sm:space-y-5">
+          <section><div className="text-[11px] font-black uppercase tracking-[0.18em] text-black/40">DETAIL</div><h2 className="mt-1 text-4xl font-black tracking-[-0.06em]">상세 데이터</h2><p className="mt-2 text-sm font-bold text-black/45">회복, 훈련량, 효율을 원본 지표에 가깝게 확인합니다.</p></section>
           <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <StatCard label="HRV" value={`${fmt(r.latest_hrv)} ms`} sub={`28d baseline ${fmt(r.hrv_baseline_28d)} ms · ${fmt(r.hrv_deviation_pct)}%`} icon="heart" />
-            <StatCard label="Resting HR" value={`${fmt(r.latest_resting_hr)} bpm`} sub={`28d baseline ${fmt(r.resting_hr_baseline_28d)} bpm · ${fmt(r.resting_hr_deviation_pct)}%`} icon="heart" />
-            <StatCard label="Sleep" value={`${fmt(r.latest_sleep_hours)} h`} sub={`score ${fmt(r.latest_sleep_score)} · 7d avg ${fmt(r.sleep_7d_avg_hours)} h`} icon="moon" />
-            <StatCard label="ATL / CTL" value={`${n(r.latest_atl, 1)} / ${n(r.latest_ctl, 1)}`} sub={`ramp ${n(r.latest_ramp_rate, 1)}`} icon="trend" />
+            <StatCard label="HRV" value={`${fmt(r.latest_hrv)} ms`} sub={`28일 기준 ${fmt(r.hrv_baseline_28d)} ms · 편차 ${fmt(r.hrv_deviation_pct)}%`} icon="heart" />
+            <StatCard label="RESTING HR" value={`${fmt(r.latest_resting_hr)} bpm`} sub={`28일 기준 ${fmt(r.resting_hr_baseline_28d)} bpm · 편차 ${fmt(r.resting_hr_deviation_pct)}%`} icon="heart" />
+            <StatCard label="SLEEP" value={`${fmt(r.latest_sleep_hours)} h`} sub={`점수 ${fmt(r.latest_sleep_score)} · 7일 평균 ${fmt(r.sleep_7d_avg_hours)} h`} icon="moon" />
+            <StatCard label="ATL / CTL" value={`${n(r.latest_atl, 1)} / ${n(r.latest_ctl, 1)}`} sub={`증가율 ${n(r.latest_ramp_rate, 1)}`} icon="trend" />
           </section>
           <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <StatCard label="7d Distance" value={`${fmt(v.distance_7d_km)} km`} sub={`${fmt(v.duration_7d_hours)} h · load ${fmt(load.training_load_7d)}`} icon="shoe" />
-            <StatCard label="28d Distance" value={`${fmt(v.distance_28d_km)} km`} sub={`${fmt(v.duration_28d_hours)} h · load ${fmt(load.training_load_28d)}`} icon="shoe" />
-            <StatCard label="7d Elevation" value={`${fmt(v.elevation_7d_m)} m`} icon="mountain" />
-            <StatCard label="28d Elevation" value={`${fmt(v.elevation_28d_m)} m`} icon="mountain" />
+            <StatCard label="7D DISTANCE" value={`${fmt(v.distance_7d_km)} km`} sub={`${fmt(v.duration_7d_hours)}시간 · 부하 ${fmt(load.training_load_7d)}`} icon="shoe" />
+            <StatCard label="28D DISTANCE" value={`${fmt(v.distance_28d_km)} km`} sub={`${fmt(v.duration_28d_hours)}시간 · 부하 ${fmt(load.training_load_28d)}`} icon="shoe" />
+            <StatCard label="7D ELEVATION" value={`${fmt(v.elevation_7d_m)} m`} sub="최근 7일 누적 상승고도" icon="mountain" />
+            <StatCard label="28D ELEVATION" value={`${fmt(v.elevation_28d_m)} m`} sub="최근 28일 누적 상승고도" icon="mountain" />
           </section>
-          <section className="grid gap-4 lg:grid-cols-3">
-            <StatCard label="Easy efficiency" value={fmt(ae.easy_efficiency_vs_baseline_pct, "%")} sub={`latest ${fmt(ae.latest_easy_efficiency)} · 28d median ${fmt(ae.easy_efficiency_28d_median)} · ${fmt(ae.easy_sessions_used)} sessions`} />
-            <StatCard label="Long run durability" value={fmt(lr.latest_durability_decline_pct, "%")} sub={`${fmt(lr.source_distance_km)} km · +${fmt(lr.source_elevation_gain_m)} m · decoupling ${fmt(lr.latest_long_run_decoupling_pct, "%")}`} />
-            <StatCard label="Latest interval" value={ia.status === "ok" ? `${fmt(ia.rep_count)} reps` : fmt(ia.status)} sub={`${fmt(ia.median_group_distance_m)} m · pace CV ${fmt(ia.pace_coefficient_of_variation_pct, "%")} · ${prettyDate(ia.source_date)}`} />
+          <section className="grid gap-3 lg:grid-cols-3">
+            <StatCard label="EASY EFFICIENCY" value={fmt(ae.easy_efficiency_vs_baseline_pct, "%")} sub={`최근 ${fmt(ae.latest_easy_efficiency)} · 28일 중앙값 ${fmt(ae.easy_efficiency_28d_median)} · ${fmt(ae.easy_sessions_used)}개 세션`} />
+            <StatCard label="DURABILITY" value={fmt(lr.latest_durability_decline_pct, "%")} sub={`${fmt(lr.source_distance_km)}km · +${fmt(lr.source_elevation_gain_m)}m · 디커플링 ${fmt(lr.latest_long_run_decoupling_pct, "%")}`} />
+            <StatCard label="INTERVAL" value={ia.status === "ok" ? `${fmt(ia.rep_count)}회` : fmt(ia.status)} sub={`${fmt(ia.median_group_distance_m)}m · 페이스 편차 ${fmt(ia.pace_coefficient_of_variation_pct, "%")} · ${prettyDate(ia.source_date)}`} />
           </section>
-          {warnings.length > 0 && <section className="rounded-2xl border border-amber-900/50 bg-amber-950/20 p-5 sm:p-6"><div className="text-sm font-semibold text-amber-300">Data quality</div><ul className="mt-3 space-y-2 text-sm leading-6 text-amber-100/80">{warnings.map((w, i) => <li key={i}>• {w}</li>)}</ul></section>}
+          {warnings.length > 0 && <section className="rounded-[18px] border border-black/10 bg-[#FFD51E] p-5"><div className="text-[10px] font-black uppercase tracking-[0.15em] opacity-50">DATA QUALITY</div><ul className="mt-3 space-y-2 text-sm font-bold leading-6">{warnings.map((w, i) => <li key={i}>• {w}</li>)}</ul></section>}
         </div>
       )}
 
       {tab === "coach" && (
         <div className="mt-5 space-y-4 sm:mt-7 sm:space-y-5">
-        <section className="rounded-[28px] border border-zinc-800 bg-zinc-950/80 p-5 sm:p-7">
-          <div className="flex items-center justify-between gap-4"><div><div className="text-sm text-zinc-500">AI Coach</div><h2 className="mt-1 text-2xl font-semibold">Claude Coach</h2></div><span className="rounded-full bg-emerald-950 px-3 py-1 text-xs text-emerald-300">live</span></div>
-          {coachEntries.length ? <div className="mt-6 grid gap-4 xl:grid-cols-2">{coachEntries.map(([key, value]) => <article key={key} className="rounded-2xl border border-zinc-800 bg-black p-5"><h3 className="text-base font-semibold">{titleize(key)}</h3><div className="mt-4 text-sm"><ValueView value={value} /></div></article>)}</div> : <div className="mt-6 text-zinc-500">코칭 내용이 비어 있습니다.</div>}
-        </section>
+          <section className="flex items-end justify-between gap-4">
+            <div>
+              <div className="text-[11px] font-black uppercase tracking-[0.18em] text-black/40">COACH</div>
+              <h2 className="mt-1 text-4xl font-black tracking-[-0.06em]">러닝 엔진에게 묻기</h2>
+              <p className="mt-2 text-sm font-bold text-black/45">질문만 쓰면 최신 회복·훈련·과거 활동 데이터를 함께 읽고 답합니다.</p>
+            </div>
+            {coachMessages.length > 0 && <button onClick={clearCoachChat} className="shrink-0 border-b border-black/30 pb-0.5 text-[10px] font-black uppercase tracking-[0.12em] text-black/45">RESET</button>}
+          </section>
+
+          <section className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {coachQuickQuestions.map((question, i) => (
+              <button key={question} onClick={() => askCoach(question)} disabled={coachBusy} className={`min-h-20 rounded-[16px] p-3 text-left text-xs font-black leading-5 transition active:scale-[0.98] disabled:opacity-50 ${i === 0 ? "bg-[#116CFF] text-white" : i === 1 ? "bg-[#FFD51E] text-black" : i === 2 ? "bg-[#2FD07B] text-black" : "bg-[#FF3B30] text-white"}`}>
+                <span className="mb-2 block text-[9px] uppercase tracking-[0.12em] opacity-55">QUICK {String(i + 1).padStart(2, "0")}</span>
+                {question}
+              </button>
+            ))}
+          </section>
+
+          <section className="overflow-hidden rounded-[20px] border border-black/10 bg-white">
+            <div className="flex items-center justify-between border-b border-black/10 px-4 py-3 sm:px-5">
+              <div><div className="text-[10px] font-black uppercase tracking-[0.16em] text-black/35">JACKSON RUNNING ENGINE</div><div className="mt-0.5 text-xs font-bold text-black/45">Claude + Supabase live context</div></div>
+              <span className="flex items-center gap-1.5 text-[10px] font-black text-black/45"><span className={`h-2 w-2 rounded-full ${coachBusy ? "animate-pulse bg-[#FFD51E]" : "bg-[#2FD07B]"}`} />{coachBusy ? "THINKING" : "READY"}</span>
+            </div>
+
+            <div className="max-h-[58vh] min-h-[320px] space-y-4 overflow-y-auto bg-[#F2F0E9] p-4 sm:p-5">
+              {coachMessages.length === 0 && (
+                <div className="grid min-h-[280px] place-items-center text-center">
+                  <div className="max-w-sm">
+                    <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-black text-white"><Icon name="trend" className="h-6 w-6" /></div>
+                    <div className="mt-4 text-xl font-black tracking-[-0.04em]">평소 말하듯 물어보면 돼.</div>
+                    <div className="mt-2 text-sm font-medium leading-6 text-black/45">“오늘 3분 NSM 해도 돼?”처럼 질문하면 최신 컨디션과 훈련 기록을 같이 보고 답해.</div>
+                  </div>
+                </div>
+              )}
+              {coachMessages.map((message) => (
+                <div key={message.id} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
+                  <article className={`max-w-[88%] rounded-[18px] px-4 py-3 text-sm font-medium leading-6 sm:max-w-[78%] ${message.role === "user" ? "rounded-br-[4px] bg-black text-white" : "rounded-bl-[4px] border border-black/10 bg-white text-black"}`}>
+                    {message.role === "assistant" && <div className="mb-2 text-[9px] font-black uppercase tracking-[0.16em] text-[#116CFF]">ENGINE</div>}
+                    <div className="whitespace-pre-wrap">{message.content}</div>
+                  </article>
+                </div>
+              ))}
+              {coachBusy && <div className="flex justify-start"><div className="rounded-[18px] rounded-bl-[4px] border border-black/10 bg-white px-4 py-3"><div className="flex items-center gap-2"><span className="h-2 w-2 animate-bounce rounded-full bg-[#116CFF]" /><span className="h-2 w-2 animate-bounce rounded-full bg-[#116CFF] [animation-delay:120ms]" /><span className="h-2 w-2 animate-bounce rounded-full bg-[#116CFF] [animation-delay:240ms]" /></div></div></div>}
+              <div ref={coachEndRef} />
+            </div>
+
+            {coachChatError && <div className="border-t border-black/10 bg-[#FFE8E5] px-4 py-3 text-xs font-bold leading-5 text-[#B8231A]">{coachChatError}</div>}
+
+            <div className="border-t border-black/10 bg-white p-3 sm:p-4">
+              <div className="flex items-end gap-2 rounded-[16px] border-2 border-black bg-[#F7F5EF] p-2">
+                <textarea
+                  value={coachQuestion}
+                  onChange={(e) => setCoachQuestion(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      askCoach();
+                    }
+                  }}
+                  placeholder="젝슨 러닝 엔진에게 물어보기…"
+                  rows={2}
+                  maxLength={800}
+                  className="max-h-32 min-h-[48px] flex-1 resize-none bg-transparent px-2 py-2 text-sm font-bold leading-5 outline-none placeholder:text-black/30"
+                />
+                <button onClick={() => askCoach()} disabled={coachBusy || !coachQuestion.trim()} className="grid h-12 w-12 shrink-0 place-items-center rounded-[12px] bg-[#116CFF] text-xl font-black text-white transition active:scale-95 disabled:bg-black/15 disabled:text-black/30" aria-label="질문 보내기">↑</button>
+              </div>
+              <div className="mt-2 flex items-center justify-between px-1 text-[9px] font-bold text-black/30"><span>Enter 전송 · Shift+Enter 줄바꿈</span><span>{coachQuestion.length}/800</span></div>
+            </div>
+          </section>
+
+          <details className="rounded-[18px] border border-black/10 bg-white p-4 sm:p-5">
+            <summary className="cursor-pointer text-xs font-black uppercase tracking-[0.12em] text-black/50">DAILY REPORT · 기존 자동 코칭 보기</summary>
+            <div className="mt-4">
+              {coachEntries.length ? <div className="grid gap-3 xl:grid-cols-2">{coachEntries.map(([key, value], i) => <article key={key} className={`${i % 4 === 0 ? "bg-[#116CFF] text-white" : i % 4 === 1 ? "bg-[#FFD51E] text-black" : i % 4 === 2 ? "bg-[#FF3B30] text-white" : "bg-[#2FD07B] text-black"} rounded-[16px] p-5`}><h3 className="text-base font-black">{titleize(key)}</h3><div className="mt-4 text-sm font-medium [&_.text-black\/65]:!text-current [&_.text-black\/50]:!text-current"><ValueView value={value} /></div></article>)}</div> : <div className="p-4 text-sm font-bold text-black/45">코칭 내용이 비어 있습니다.</div>}
+            </div>
+          </details>
         </div>
       )}
       </div>
+
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-black/95 px-2 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 text-white backdrop-blur-xl">
+        <div className="mx-auto grid max-w-2xl grid-cols-6 gap-1">
+          {tabs.map((item) => (
+            <button key={item.id} onClick={() => setTab(item.id)} className={`relative rounded-[12px] px-1 py-2 text-[9px] font-black transition sm:text-[10px] ${tab === item.id ? "bg-white text-black" : "text-white/45"}`}>
+              <span className="block truncate">{item.label}</span>
+              {tab === item.id && <span className="absolute inset-x-3 -bottom-1 h-1 rounded-full bg-[#FF3B30]" />}
+            </button>
+          ))}
+        </div>
+      </nav>
     </Shell>
   );
 }
