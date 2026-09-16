@@ -81,21 +81,21 @@ const coachQuickQuestions = [
 
 const toneClasses: Record<Tone, { badge: string; dot: string; text: string; border: string; bg: string }> = {
   good: {
-    badge: "border-black/10 bg-[#2FD07B] text-black",
+    badge: "border-black/10 bg-[#30D158] text-black",
     dot: "bg-black",
     text: "text-[#128653]",
     border: "border-black/10",
     bg: "bg-[#E7F7EE]",
   },
   neutral: {
-    badge: "border-black/10 bg-[#116CFF] text-white",
+    badge: "border-black/10 bg-[#0A84FF] text-white",
     dot: "bg-white",
-    text: "text-[#116CFF]",
+    text: "text-[#0A84FF]",
     border: "border-black/10",
     bg: "bg-[#EAF1FF]",
   },
   warn: {
-    badge: "border-black/10 bg-[#FF3B30] text-white",
+    badge: "border-black/10 bg-[#FF453A] text-white",
     dot: "bg-white",
     text: "text-[#D02D24]",
     border: "border-black/10",
@@ -182,27 +182,27 @@ function RadarChart({ current, peak }: { current: Array<number | null>; peak: Ar
     <div className="relative mx-auto aspect-square w-full max-w-[360px]">
       <svg viewBox={`0 0 ${size} ${size}`} className="h-full w-full overflow-visible">
         {rings.map((ring) => (
-          <polygon key={ring} points={polygonPoints(Array(6).fill(ring), radius, cx, cy)} fill="none" stroke="#D3D0C7" strokeWidth="1" />
+          <polygon key={ring} points={polygonPoints(Array(6).fill(ring), radius, cx, cy)} fill="none" stroke="rgba(255,255,255,.14)" strokeWidth="1" />
         ))}
         {peakAxisLabels.map((_, i) => {
           const angle = -Math.PI / 2 + (Math.PI * 2 * i) / 6;
           const x = cx + Math.cos(angle) * radius;
           const y = cy + Math.sin(angle) * radius;
-          return <line key={i} x1={cx} y1={cy} x2={x} y2={y} stroke="#D3D0C7" strokeWidth="1" />;
+          return <line key={i} x1={cx} y1={cy} x2={x} y2={y} stroke="rgba(255,255,255,.14)" strokeWidth="1" />;
         })}
-        <polygon points={polygonPoints(peakVals, radius, cx, cy)} fill="rgba(0,0,0,.02)" stroke="#A9A69F" strokeDasharray="5 5" strokeWidth="1.5" />
-        <polygon points={polygonPoints(currentVals, radius, cx, cy)} fill="rgba(17,108,255,.14)" stroke="#116CFF" strokeWidth="2.5" />
+        <polygon points={polygonPoints(peakVals, radius, cx, cy)} fill="rgba(255,255,255,.02)" stroke="#636366" strokeDasharray="5 5" strokeWidth="1.5" />
+        <polygon points={polygonPoints(currentVals, radius, cx, cy)} fill="rgba(17,108,255,.14)" stroke="#0A84FF" strokeWidth="2.5" />
         {currentVals.map((v, i) => {
           const angle = -Math.PI / 2 + (Math.PI * 2 * i) / 6;
           const r = radius * clamp(v, 0, 110) / 110;
-          return <circle key={i} cx={cx + Math.cos(angle) * r} cy={cy + Math.sin(angle) * r} r="3.5" fill="#FF3B30" />;
+          return <circle key={i} cx={cx + Math.cos(angle) * r} cy={cy + Math.sin(angle) * r} r="3.5" fill="#FF453A" />;
         })}
         {peakAxisLabels.map((label, i) => {
           const angle = -Math.PI / 2 + (Math.PI * 2 * i) / 6;
           const r = radius + 34;
           const x = cx + Math.cos(angle) * r;
           const y = cy + Math.sin(angle) * r;
-          return <text key={label} x={x} y={y} textAnchor="middle" dominantBaseline="middle" fill="#6B675F" fontSize="11">{label}</text>;
+          return <text key={label} x={x} y={y} textAnchor="middle" dominantBaseline="middle" fill="#8E8E93" fontSize="11">{label}</text>;
         })}
       </svg>
       {!hasCurrent && <div className="absolute inset-0 grid place-items-center"><div className="rounded-full border border-black/10 bg-black/80 px-4 py-2 text-xs text-black/50">히스토리 백필 후 자동 표시</div></div>}
@@ -212,7 +212,7 @@ function RadarChart({ current, peak }: { current: Array<number | null>; peak: Ar
 
 function PeakScoreCard({ label, score, peakDate, detail }: { label: string; score: number | null; peakDate: string | null; detail: string }) {
   const tone = scoreTone(score);
-  const color = tone === "good" ? "#2FD07B" : tone === "warn" ? "#FF3B30" : "#116CFF";
+  const color = tone === "good" ? "#30D158" : tone === "warn" ? "#FF453A" : "#0A84FF";
   return (
     <div className="rounded-[18px] border border-black/10 bg-white p-5">
       <div className="flex items-center justify-between gap-3">
@@ -274,7 +274,34 @@ function Icon({ name, className = "h-5 w-5" }: { name: string; className?: strin
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <main className="min-h-screen bg-[#F2F0E8] text-[#0A0A0A] selection:bg-[#FF3B30] selection:text-white">
+    <main
+      className="jr-dark min-h-screen bg-black text-white selection:bg-[#FF453A] selection:text-white"
+      style={{
+        fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif',
+      }}
+    >
+      <style>{`
+        html, body { background: #000 !important; }
+        .jr-dark { color-scheme: dark; }
+        .jr-dark [class*="bg-[#F2F0E8]"],
+        .jr-dark [class*="bg-[#F7F5EF]"],
+        .jr-dark [class*="bg-[#F3F0E8]"] { background-color: #0B0B0C !important; }
+        .jr-dark [class~="bg-white"],
+        .jr-dark [class*="bg-white/"] { background-color: #1C1C1E !important; }
+        .jr-dark [class*="border-black/"] { border-color: rgba(255,255,255,.12) !important; }
+        .jr-dark [class*="text-black/"] { color: rgba(255,255,255,.56) !important; }
+        .jr-dark [class~="text-black"] { color: #F5F5F7 !important; }
+        .jr-dark [class*="bg-black/"] { background-color: rgba(255,255,255,.08) !important; }
+        .jr-dark [class*="bg-[#FFD60A]"] ,
+        .jr-dark [class*="bg-[#30D158]"] { color: #050505 !important; }
+        .jr-dark [class*="bg-[#FFD60A]"] [class~="text-black"],
+        .jr-dark [class*="bg-[#FFD60A]"] [class*="text-black/"],
+        .jr-dark [class*="bg-[#30D158]"] [class~="text-black"],
+        .jr-dark [class*="bg-[#30D158]"] [class*="text-black/"] { color: #050505 !important; }
+        .jr-dark details, .jr-dark summary { color: inherit; }
+        .jr-dark textarea { caret-color: #fff; }
+        .jr-dark ::-webkit-scrollbar { width: 0; height: 0; }
+      `}</style>
       <div className="mx-auto max-w-6xl px-4 pb-28 pt-5 sm:px-6 sm:pt-8">{children}</div>
     </main>
   );
@@ -290,7 +317,7 @@ function Pill({ tone, children }: { tone: Tone; children: React.ReactNode }) {
 }
 
 function MiniMetric({ icon, label, value, detail, tone = "neutral" }: { icon: string; label: string; value: string; detail: string; tone?: Tone }) {
-  const accent = tone === "good" ? "#2FD07B" : tone === "warn" ? "#FFD51E" : "#116CFF";
+  const accent = tone === "good" ? "#30D158" : tone === "warn" ? "#FFD60A" : "#0A84FF";
   return (
     <div className="rounded-[18px] border border-black/10 bg-white p-4 shadow-[0_1px_0_rgba(0,0,0,.04)] sm:p-5">
       <div className="flex items-center justify-between gap-3">
@@ -304,7 +331,7 @@ function MiniMetric({ icon, label, value, detail, tone = "neutral" }: { icon: st
 }
 
 function ProgressBar({ value, tone = "neutral" }: { value: number; tone?: Tone }) {
-  const color = tone === "good" ? "#2FD07B" : tone === "warn" ? "#FF3B30" : "#116CFF";
+  const color = tone === "good" ? "#30D158" : tone === "warn" ? "#FF453A" : "#0A84FF";
   return (
     <div className="h-2 overflow-hidden rounded-full bg-black/10">
       <div className="h-full rounded-full" style={{ width: `${clamp(value)}%`, background: color }} />
@@ -315,7 +342,7 @@ function ProgressBar({ value, tone = "neutral" }: { value: number; tone?: Tone }
 function ComparisonRow({ label, current, baseline, unit, icon }: { label: string; current: number | null; baseline: number | null; unit: string; icon: string }) {
   const ratio = current !== null && baseline && baseline > 0 ? current / baseline : null;
   const pct = ratio !== null ? clamp(ratio * 50, 4, 100) : 0;
-  const palette = label.includes("거리") ? "bg-[#FF3B30]" : label.includes("상승") ? "bg-[#116CFF]" : "bg-[#FFD51E]";
+  const palette = label.includes("거리") ? "bg-[#FF453A]" : label.includes("상승") ? "bg-[#0A84FF]" : "bg-[#FFD60A]";
   const textColor = label.includes("상승") || label.includes("거리") ? "text-white" : "text-black";
   return (
     <div className={`rounded-[18px] border border-black/10 p-4 sm:p-5 ${palette} ${textColor}`}>
@@ -337,13 +364,13 @@ function ComparisonRow({ label, current, baseline, unit, icon }: { label: string
 
 function StatCard({ label, value, sub, icon }: { label: string; value: string; sub?: string; icon?: string }) {
   const palette = label.includes("HRV") || label.includes("SLEEP")
-    ? "bg-[#116CFF] text-white"
+    ? "bg-[#0A84FF] text-white"
     : label.includes("고도") || label.includes("Elevation") || label.includes("오르막")
-      ? "bg-[#FFD51E] text-black"
+      ? "bg-[#FFD60A] text-black"
       : label.includes("거리") || label.includes("Distance") || label.includes("효율") || label.includes("Easy")
-        ? "bg-[#2FD07B] text-black"
+        ? "bg-[#30D158] text-black"
         : label.includes("interval") || label.includes("스피드")
-          ? "bg-[#FF3B30] text-white"
+          ? "bg-[#FF453A] text-white"
           : "bg-white text-black";
   return (
     <div className={`rounded-[18px] border border-black/10 p-5 ${palette}`}>
@@ -381,7 +408,31 @@ function titleize(key: string) {
 function renderPrimitive(v: unknown) {
   if (v === null || v === undefined || v === "") return "—";
   if (typeof v === "boolean") return v ? "Yes" : "No";
-  return String(v);
+  return String(v).replace(/\*\*/g, "").replace(/__+/g, "");
+}
+
+function extractCoachAnswer(payload: any) {
+  const candidates = [payload?.answer, payload?.text, payload?.output_text];
+  for (const value of candidates) {
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+
+  const blocks = Array.isArray(payload?.content)
+    ? payload.content
+    : Array.isArray(payload?.message?.content)
+      ? payload.message.content
+      : [];
+  const text = blocks
+    .filter((item: any) => item?.type === "text" && typeof item?.text === "string")
+    .map((item: any) => item.text)
+    .join("\n")
+    .trim();
+  return text;
+}
+
+function CoachMessageText({ text }: { text: string }) {
+  const cleaned = text.replace(/\*\*/g, "").replace(/__+/g, "").trim();
+  return <div className="whitespace-pre-wrap">{cleaned}</div>;
 }
 
 function ValueView({ value }: { value: unknown }) {
@@ -419,7 +470,7 @@ function ObjectRows({ obj }: { obj: JsonRecord }) {
 function WorkoutCard({ recommendation }: { recommendation: JsonRecord | null }) {
   if (!recommendation) {
     return (
-      <div className="rounded-[20px] border border-black/10 bg-[#FFD51E] p-6 text-black">
+      <div className="rounded-[20px] border border-black/10 bg-[#FFD60A] p-6 text-black">
         <div className="text-[10px] font-black uppercase tracking-[0.16em] opacity-55">TODAY RUN</div>
         <div className="mt-3 text-2xl font-black">추천 훈련 데이터가 없습니다.</div>
       </div>
@@ -439,7 +490,7 @@ function WorkoutCard({ recommendation }: { recommendation: JsonRecord | null }) 
   const reasoning = recommendation.reasoning ?? recommendation.reason ?? "회복과 최근 훈련 부하를 반영한 추천입니다.";
 
   return (
-    <div className="rounded-[20px] border border-black/10 bg-[#FFD51E] p-5 text-black sm:p-6">
+    <div className="rounded-[20px] border border-black/10 bg-[#FFD60A] p-5 text-black sm:p-6">
       <div className="flex items-center justify-between gap-4">
         <div className="text-[10px] font-black uppercase tracking-[0.16em] opacity-55">오늘 추천 훈련</div>
         <span className="rounded-full bg-black px-3 py-1 text-[10px] font-black text-white">COACH</span>
@@ -458,7 +509,7 @@ function WorkoutCard({ recommendation }: { recommendation: JsonRecord | null }) 
 }
 
 function SimpleBullet({ tone, title, detail }: { tone: Tone; title: string; detail: string }) {
-  const color = tone === "good" ? "#2FD07B" : tone === "warn" ? "#FF3B30" : "#116CFF";
+  const color = tone === "good" ? "#30D158" : tone === "warn" ? "#FF453A" : "#0A84FF";
   return (
     <div className="flex gap-3 rounded-[16px] border border-black/10 bg-white p-4">
       <span className="mt-1 h-3 w-3 shrink-0 rounded-full" style={{ background: color }} />
@@ -981,7 +1032,7 @@ function TrainingSetStrip({ work, accent = "bg-black" }: { work: string; accent?
 
 function TrainingInfographicCard({ spec, day, venue, status }: { spec: TrainingFormat; day: TrainingDay; venue: TrainingVenue; status: string }) {
   const isTuesday = day === "tuesday";
-  const bg = isTuesday ? "bg-[#116CFF] text-white" : "bg-[#FFD51E] text-black";
+  const bg = isTuesday ? "bg-[#0A84FF] text-white" : "bg-[#FFD60A] text-black";
   const venueLabel = venue === "track" ? (isTuesday ? "TRACK" : "OUTDOOR") : "TREADMILL";
   const darkCard = isTuesday ? "bg-black text-white" : "bg-black text-white";
 
@@ -1114,19 +1165,19 @@ function RecentSessionsChart({ sessions }: { sessions: JsonRecord[] }) {
           const hard = (safeNumber(s.rpe) ?? 0) >= 6 || (safeNumber(s.training_load) ?? 0) >= 80;
           return (
             <div key={`${s.date}-${i}`} className="flex min-w-0 flex-1 flex-col items-center justify-end gap-2">
-              <div className={hard ? "w-full max-w-10 bg-[#FF3B30]" : "w-full max-w-10 bg-black"} style={{ height: `${h}%` }} title={`${dist} km`} />
+              <div className={hard ? "w-full max-w-10 bg-[#FF453A]" : "w-full max-w-10 bg-black"} style={{ height: `${h}%` }} title={`${dist} km`} />
               <div className="w-full truncate text-center text-[9px] font-bold text-black/35">{prettyDate(s.date, false)}</div>
             </div>
           );
         })}
       </div>
-      <div className="mt-3 flex gap-4 text-[10px] font-bold text-black/45"><span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-black" />일반</span><span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[#FF3B30]" />강한 세션</span></div>
+      <div className="mt-3 flex gap-4 text-[10px] font-bold text-black/45"><span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-black" />일반</span><span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[#FF453A]" />강한 세션</span></div>
     </div>
   );
 }
 
 function SectionBanner({ tag, title, caption, color = "lime" }: { tag: string; title: string; caption?: string; color?: "lime" | "yellow" | "blue" | "purple" | "coral" }) {
-  const cls = color === "yellow" ? "bg-[#FFD51E]" : color === "blue" ? "bg-[#116CFF]" : color === "purple" ? "bg-[#116CFF]" : color === "coral" ? "bg-[#FF3B30]" : "bg-[#2FD07B]";
+  const cls = color === "yellow" ? "bg-[#FFD60A]" : color === "blue" ? "bg-[#0A84FF]" : color === "purple" ? "bg-[#0A84FF]" : color === "coral" ? "bg-[#FF453A]" : "bg-[#30D158]";
   return <div className={`rounded-[20px] border border-black/10 p-5 text-black sm:p-6 ${cls}`}><div className="text-[10px] font-bold uppercase tracking-[0.22em] opacity-50">{tag}</div><div className="mt-2 text-3xl font-black tracking-[-0.05em] sm:text-4xl">{title}</div>{caption && <div className="mt-3 max-w-2xl text-sm font-medium leading-6 opacity-60">{caption}</div>}</div>;
 }
 
@@ -1422,10 +1473,12 @@ export default function Home() {
         }),
       });
 
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(payload?.error ?? `Coach API 오류 (${response.status})`);
-      const answer = typeof payload?.answer === "string" ? payload.answer.trim() : "";
-      if (!answer) throw new Error("코치 답변이 비어 있습니다.");
+      const raw = await response.text();
+      let payload: any = {};
+      try { payload = raw ? JSON.parse(raw) : {}; } catch { payload = { rawText: raw }; }
+      if (!response.ok) throw new Error(payload?.error ?? payload?.message ?? `Coach API 오류 (${response.status})`);
+      const answer = extractCoachAnswer(payload);
+      if (!answer) throw new Error("코치 응답 텍스트를 읽지 못했습니다. Edge Function 로그를 확인하세요.");
 
       setCoachMessages((prev) => [...prev, {
         id: `a-${Date.now()}`,
@@ -1448,15 +1501,22 @@ export default function Home() {
 
   return (
     <Shell>
-      <header className="flex items-start justify-between gap-4 border-b border-black/10 pb-5">
-        <div className="min-w-0">
-          <div className="text-[11px] font-black uppercase tracking-[0.28em] text-black/50">JACKSON</div>
-          <h1 className="mt-1 text-[34px] font-black leading-[0.88] tracking-[-0.065em] sm:text-[44px]">RUNNING<br />ENGINE</h1>
-          <div className="mt-3 text-xs font-bold text-black/45">더 멀리, 더 강하게.</div>
-          <div className="mt-1 text-[10px] font-bold text-black/30">업데이트 {prettyDate(d.generated_at_local ?? d.generated_at ?? report.created_at)}</div>
-        </div>
-        <div className="h-[118px] w-[126px] shrink-0 overflow-hidden rounded-[18px] bg-black sm:h-[132px] sm:w-[148px]">
-          <div className="-mt-3 scale-[0.82] sm:scale-[0.9]"><RunnerMotion compact /></div>
+      <header className="relative overflow-hidden border-b border-white/10 pb-3">
+        <div className="flex min-h-[154px] items-start justify-between gap-2">
+          <div className="min-w-0 flex-1 pt-2">
+            <img
+              src={JACKSON_HAND_TITLE}
+              alt="JACKSON RUNNING ENGINE"
+              className="h-auto w-[275px] max-w-[78vw] brightness-0 invert sm:w-[330px]"
+              draggable={false}
+            />
+            <div className="mt-2 text-[10px] font-semibold tracking-[-0.01em] text-white/35">
+              업데이트 {prettyDate(d.generated_at_local ?? d.generated_at ?? report.created_at)}
+            </div>
+          </div>
+          <div className="pointer-events-none -mr-4 -mt-1 h-[150px] w-[128px] shrink-0 overflow-hidden sm:mr-0 sm:w-[150px]">
+            <div className="-ml-2 -mt-1 scale-[0.92]"><RunnerMotion compact /></div>
+          </div>
         </div>
       </header>
 
@@ -1464,7 +1524,7 @@ export default function Home() {
       {tab === "overview" && (
         <div className="mt-5 space-y-4 sm:mt-7 sm:space-y-5">
           <section className="grid gap-4 lg:grid-cols-[1.08fr_.92fr]">
-            <div className={`${overallTone === "good" ? "bg-[#2FD07B] text-black" : overallTone === "warn" ? "bg-[#FF3B30] text-white" : "bg-[#116CFF] text-white"} rounded-[20px] border border-black/10 p-5 sm:p-7`}>
+            <div className={`${overallTone === "good" ? "bg-[#30D158] text-black" : overallTone === "warn" ? "bg-[#FF453A] text-white" : "bg-[#0A84FF] text-white"} rounded-[20px] border border-black/10 p-5 sm:p-7`}>
               <div className="flex items-start justify-between gap-5">
                 <div className="min-w-0">
                   <div className="text-[11px] font-black uppercase tracking-[0.16em] opacity-65">READINESS</div>
@@ -1543,7 +1603,7 @@ export default function Home() {
               </div>
             </div>
             <div className="rounded-[18px] border border-black/10 bg-white p-5 sm:p-6">
-              <div className="flex items-center gap-2 text-sm font-semibold"><Icon name="target" className="h-4 w-4 text-[#116CFF]" />PLAN B</div>
+              <div className="flex items-center gap-2 text-sm font-semibold"><Icon name="target" className="h-4 w-4 text-[#0A84FF]" />PLAN B</div>
               <p className="mt-4 text-sm leading-7 text-black/65">{planB ? String(planB) : "몸이 예상보다 무거우면 거리와 강도를 줄이고 회복 러닝으로 전환."}</p>
             </div>
           </section>
@@ -1611,14 +1671,14 @@ export default function Home() {
               <div>
                 <div className="mb-2 text-[9px] font-black uppercase tracking-[0.15em] text-black/35">DAY</div>
                 <div className="grid grid-cols-2 gap-1 rounded-[14px] bg-black/[0.05] p-1">
-                  <button onClick={() => setTrainingDay("tuesday")} className={`rounded-[11px] px-3 py-2.5 text-xs font-black transition ${trainingDay === "tuesday" ? "bg-[#116CFF] text-white" : "text-black/45"}`}>화요일</button>
-                  <button onClick={() => setTrainingDay("thursday")} className={`rounded-[11px] px-3 py-2.5 text-xs font-black transition ${trainingDay === "thursday" ? "bg-[#FFD51E] text-black" : "text-black/45"}`}>목요일</button>
+                  <button onClick={() => setTrainingDay("tuesday")} className={`rounded-[11px] px-3 py-2.5 text-xs font-black transition ${trainingDay === "tuesday" ? "bg-[#0A84FF] text-white" : "text-black/45"}`}>화요일</button>
+                  <button onClick={() => setTrainingDay("thursday")} className={`rounded-[11px] px-3 py-2.5 text-xs font-black transition ${trainingDay === "thursday" ? "bg-[#FFD60A] text-black" : "text-black/45"}`}>목요일</button>
                 </div>
               </div>
               <div>
                 <div className="mb-2 text-[9px] font-black uppercase tracking-[0.15em] text-black/35">GROUP</div>
                 <div className="grid grid-cols-3 gap-1 rounded-[14px] bg-black/[0.05] p-1">
-                  {(Object.keys(trainingGroupLabels) as TrainingGroup[]).map((group) => <button key={group} onClick={() => setTrainingGroup(group)} className={`rounded-[11px] px-2 py-2.5 text-xs font-black transition ${trainingGroup === group ? "bg-[#FF3B30] text-white" : "text-black/45"}`}>{trainingGroupLabels[group]}</button>)}
+                  {(Object.keys(trainingGroupLabels) as TrainingGroup[]).map((group) => <button key={group} onClick={() => setTrainingGroup(group)} className={`rounded-[11px] px-2 py-2.5 text-xs font-black transition ${trainingGroup === group ? "bg-[#FF453A] text-white" : "text-black/45"}`}>{trainingGroupLabels[group]}</button>)}
                 </div>
               </div>
               <div>
@@ -1640,8 +1700,8 @@ export default function Home() {
             </section>
 
             <section className="grid gap-3 sm:grid-cols-3">
-              <div className="rounded-[18px] border border-black/10 bg-white p-4"><div className="text-[10px] font-black uppercase tracking-[0.15em] text-[#116CFF]">WARM UP</div><div className="mt-2 text-sm font-bold leading-6">15–20분 이지 + 러닝 드릴 + 20초 스트라이드 4회</div></div>
-              <div className="rounded-[18px] border border-black/10 bg-white p-4"><div className="text-[10px] font-black uppercase tracking-[0.15em] text-[#FF3B30]">STOP</div><div className="mt-2 text-sm font-bold leading-6">폼 붕괴, 목표 대비 3% 이상 저하, 비정상 어지럼이면 즉시 종료</div></div>
+              <div className="rounded-[18px] border border-black/10 bg-white p-4"><div className="text-[10px] font-black uppercase tracking-[0.15em] text-[#0A84FF]">WARM UP</div><div className="mt-2 text-sm font-bold leading-6">15–20분 이지 + 러닝 드릴 + 20초 스트라이드 4회</div></div>
+              <div className="rounded-[18px] border border-black/10 bg-white p-4"><div className="text-[10px] font-black uppercase tracking-[0.15em] text-[#FF453A]">STOP</div><div className="mt-2 text-sm font-bold leading-6">폼 붕괴, 목표 대비 3% 이상 저하, 비정상 어지럼이면 즉시 종료</div></div>
               <div className="rounded-[18px] border border-black/10 bg-white p-4"><div className="text-[10px] font-black uppercase tracking-[0.15em] text-[#2B2B2B]">COOL DOWN</div><div className="mt-2 text-sm font-bold leading-6">10–15분 이지. 다음날은 완전 이지 또는 휴식</div></div>
             </section>
 
@@ -1657,18 +1717,18 @@ export default function Home() {
                   const tue = w.tuesdayGroups[trainingGroup][trainingVenue];
                   const thu = trainingVenue === "track" ? w.thursdayOutdoor : w.thursdayTreadmill;
                   return (
-                    <div key={w.week} className={`rounded-[16px] border p-4 ${i === currentWeekIndex ? "border-black bg-[#FFD51E]" : "border-black/10 bg-[#F8F6F0]"}`}>
+                    <div key={w.week} className={`rounded-[16px] border p-4 ${i === currentWeekIndex ? "border-black bg-[#FFD60A]" : "border-black/10 bg-[#F8F6F0]"}`}>
                       <div className="flex items-center justify-between"><div className="text-[9px] font-black uppercase tracking-[0.15em] text-black/40">WEEK {w.week}</div>{i === currentWeekIndex && <span className="rounded-full bg-black px-2 py-1 text-[8px] font-black text-white">NOW</span>}</div>
                       <div className="mt-1 text-base font-black">{w.focus}</div>
                       <div className="mt-3 grid grid-cols-2 gap-2">
-                        <button type="button" onClick={() => setTrainingDay("tuesday")} className="rounded-[12px] bg-white/80 p-3 text-left"><div className="text-[9px] font-black text-[#116CFF]">TUE</div><div className="mt-1 text-xs font-black leading-5">{tue.work}</div><div className="mt-1 text-[10px] font-bold text-black/40">{tue.lap400 ?? tue.pace}</div></button>
-                        <button type="button" onClick={() => setTrainingDay("thursday")} className="rounded-[12px] bg-white/80 p-3 text-left"><div className="text-[9px] font-black text-[#FF3B30]">THU</div><div className="mt-1 text-xs font-black leading-5">{thu.work}</div><div className="mt-1 text-[10px] font-bold text-black/40">{thu.pace}</div></button>
+                        <button type="button" onClick={() => setTrainingDay("tuesday")} className="rounded-[12px] bg-white/80 p-3 text-left"><div className="text-[9px] font-black text-[#0A84FF]">TUE</div><div className="mt-1 text-xs font-black leading-5">{tue.work}</div><div className="mt-1 text-[10px] font-bold text-black/40">{tue.lap400 ?? tue.pace}</div></button>
+                        <button type="button" onClick={() => setTrainingDay("thursday")} className="rounded-[12px] bg-white/80 p-3 text-left"><div className="text-[9px] font-black text-[#FF453A]">THU</div><div className="mt-1 text-xs font-black leading-5">{thu.work}</div><div className="mt-1 text-[10px] font-bold text-black/40">{thu.pace}</div></button>
                       </div>
                     </div>
                   );
                 })}
               </div>
-              <div className="mt-4 rounded-[14px] bg-black p-4 text-white"><div className="text-[9px] font-black uppercase tracking-[0.14em] text-white/45">RACE MODE</div><div className="mt-1 text-sm font-bold leading-6"><span className="text-[#FFD51E]">{raceModeLabels[raceMode]}</span> · {modeModifier[raceMode]}</div></div>
+              <div className="mt-4 rounded-[14px] bg-black p-4 text-white"><div className="text-[9px] font-black uppercase tracking-[0.14em] text-white/45">RACE MODE</div><div className="mt-1 text-sm font-bold leading-6"><span className="text-[#FFD60A]">{raceModeLabels[raceMode]}</span> · {modeModifier[raceMode]}</div></div>
             </section>
 
             <section className="grid gap-3 sm:grid-cols-3">
@@ -1719,13 +1779,13 @@ export default function Home() {
               <div className="rounded-[20px] border border-black/10 bg-black p-5 text-white sm:p-7">
                 <div className="flex items-start justify-between gap-4"><div><div className="text-[10px] font-black uppercase tracking-[0.16em] text-white/45">UTMB INDEX</div><div className="mt-2 text-7xl font-black leading-none tracking-[-0.08em]">{utmb?.overall_index ?? "—"}</div></div><div className="text-right text-[10px] font-bold leading-5 text-white/35">{utmb ? `갱신 ${prettyDate(utmb.captured_at)}` : utmbLoading ? "확인 중" : "동기화 대기"}</div></div>
                 <div className="mt-6 grid grid-cols-2 gap-2">
-                  {[["20K", utmb?.index_20k, "bg-[#116CFF]"], ["50K", utmb?.index_50k, "bg-[#FF3B30]"], ["100K", utmb?.index_100k, "bg-[#FFD51E] text-black"], ["100M", utmb?.index_100m, "bg-[#2FD07B] text-black"]].map(([label, value, cls]) => <div key={String(label)} className={`rounded-[14px] p-4 ${String(cls)}`}><div className="text-[9px] font-black uppercase opacity-55">{String(label)}</div><div className="mt-1 text-3xl font-black">{typeof value === "number" ? value : "—"}</div></div>)}
+                  {[["20K", utmb?.index_20k, "bg-[#0A84FF]"], ["50K", utmb?.index_50k, "bg-[#FF453A]"], ["100K", utmb?.index_100k, "bg-[#FFD60A] text-black"], ["100M", utmb?.index_100m, "bg-[#30D158] text-black"]].map(([label, value, cls]) => <div key={String(label)} className={`rounded-[14px] p-4 ${String(cls)}`}><div className="text-[9px] font-black uppercase opacity-55">{String(label)}</div><div className="mt-1 text-3xl font-black">{typeof value === "number" ? value : "—"}</div></div>)}
                 </div>
                 <div className="mt-4 grid grid-cols-3 gap-px overflow-hidden rounded-[12px] bg-white/10 text-center"><div className="bg-white/5 p-3"><div className="text-[8px] font-black text-white/35">BEST</div><div className="mt-1 font-black">{utmb?.best_score ?? "—"}</div></div><div className="bg-white/5 p-3"><div className="text-[8px] font-black text-white/35">FINISH</div><div className="mt-1 font-black">{utmb?.finished_races ?? "—"}</div></div><div className="bg-white/5 p-3"><div className="text-[8px] font-black text-white/35">TOP10</div><div className="mt-1 font-black">{utmb?.top10 ?? "—"}</div></div></div>
               </div>
             </section>
 
-            {(utmb?.korea_men_rank_est || utmb?.korea_age_rank_est) && <section className="grid gap-3 sm:grid-cols-2"><div className="rounded-[18px] border border-black/10 bg-[#116CFF] p-5 text-white"><div className="text-[10px] font-black uppercase tracking-[0.14em] opacity-55">KOREA RANK</div><div className="mt-2 text-5xl font-black">{utmb?.korea_men_rank_est ? `#${utmb.korea_men_rank_est}` : "—"}</div><div className="mt-2 text-sm font-bold opacity-70">한국 남자 Overall</div></div><div className="rounded-[18px] border border-black/10 bg-[#FFD51E] p-5 text-black"><div className="text-[10px] font-black uppercase tracking-[0.14em] opacity-55">AGE RANK</div><div className="mt-2 text-5xl font-black">{utmb?.korea_age_rank_est ? `#${utmb.korea_age_rank_est}` : "—"}</div><div className="mt-2 text-sm font-bold opacity-70">한국 남자 {utmb?.age_group ?? "35–39"}</div></div></section>}
+            {(utmb?.korea_men_rank_est || utmb?.korea_age_rank_est) && <section className="grid gap-3 sm:grid-cols-2"><div className="rounded-[18px] border border-black/10 bg-[#0A84FF] p-5 text-white"><div className="text-[10px] font-black uppercase tracking-[0.14em] opacity-55">KOREA RANK</div><div className="mt-2 text-5xl font-black">{utmb?.korea_men_rank_est ? `#${utmb.korea_men_rank_est}` : "—"}</div><div className="mt-2 text-sm font-bold opacity-70">한국 남자 Overall</div></div><div className="rounded-[18px] border border-black/10 bg-[#FFD60A] p-5 text-black"><div className="text-[10px] font-black uppercase tracking-[0.14em] opacity-55">AGE RANK</div><div className="mt-2 text-5xl font-black">{utmb?.korea_age_rank_est ? `#${utmb.korea_age_rank_est}` : "—"}</div><div className="mt-2 text-sm font-bold opacity-70">한국 남자 {utmb?.age_group ?? "35–39"}</div></div></section>}
 
             <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               <PeakScoreCard label="RECOVERY" score={safeNumber(latestPeak?.recovery_score)} peakDate={bestPeak?.metric_date ?? null} detail="HRV, 안정 심박, 수면, 최근 피로 균형" />
@@ -1738,10 +1798,10 @@ export default function Home() {
 
             <section className="rounded-[20px] border border-black/10 bg-white p-5 sm:p-6">
               <div className="flex items-end justify-between gap-4"><div><div className="text-[10px] font-black uppercase tracking-[0.15em] text-black/35">ENGINE INPUT</div><h3 className="mt-1 text-xl font-black">현재 계산에 쓰는 데이터</h3></div><Icon name="trend" className="h-5 w-5 text-black/30" /></div>
-              <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">{provisionalNotes.map((item, i) => <div key={item.label} className={`${i === 0 ? "bg-[#FF3B30] text-white" : i === 1 ? "bg-[#116CFF] text-white" : i === 2 ? "bg-[#FFD51E] text-black" : "bg-[#2FD07B] text-black"} rounded-[14px] p-4`}><div className="text-[9px] font-black uppercase opacity-55">{item.label}</div><div className="mt-2 text-2xl font-black">{item.value}</div><div className="mt-2 text-[10px] font-bold leading-5 opacity-60">{item.detail}</div></div>)}</div>
+              <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">{provisionalNotes.map((item, i) => <div key={item.label} className={`${i === 0 ? "bg-[#FF453A] text-white" : i === 1 ? "bg-[#0A84FF] text-white" : i === 2 ? "bg-[#FFD60A] text-black" : "bg-[#30D158] text-black"} rounded-[14px] p-4`}><div className="text-[9px] font-black uppercase opacity-55">{item.label}</div><div className="mt-2 text-2xl font-black">{item.value}</div><div className="mt-2 text-[10px] font-bold leading-5 opacity-60">{item.detail}</div></div>)}</div>
             </section>
 
-            {peakRows.length > 1 && <section className="rounded-[20px] border border-black/10 bg-white p-5 sm:p-6"><div className="flex items-end justify-between"><div><div className="text-[10px] font-black uppercase tracking-[0.15em] text-black/35">FORM</div><h3 className="mt-1 text-xl font-black">최고점으로 가는 흐름</h3></div><div className="text-[10px] font-black text-black/35">{raceModeLabels[raceMode]}</div></div><div className="mt-6 flex h-40 items-end gap-1 overflow-hidden">{peakRows.slice(-90).map((row, i) => { const score = safeNumber(row.overall_score) ?? 0; return <div key={`${row.metric_date}-${i}`} className="min-w-0 flex-1 bg-[#116CFF]" style={{ height: `${Math.max(4, clamp(score, 0, 110) / 110 * 100)}%` }} title={`${row.metric_date}: ${score}`} />; })}</div></section>}
+            {peakRows.length > 1 && <section className="rounded-[20px] border border-black/10 bg-white p-5 sm:p-6"><div className="flex items-end justify-between"><div><div className="text-[10px] font-black uppercase tracking-[0.15em] text-black/35">FORM</div><h3 className="mt-1 text-xl font-black">최고점으로 가는 흐름</h3></div><div className="text-[10px] font-black text-black/35">{raceModeLabels[raceMode]}</div></div><div className="mt-6 flex h-40 items-end gap-1 overflow-hidden">{peakRows.slice(-90).map((row, i) => { const score = safeNumber(row.overall_score) ?? 0; return <div key={`${row.metric_date}-${i}`} className="min-w-0 flex-1 bg-[#0A84FF]" style={{ height: `${Math.max(4, clamp(score, 0, 110) / 110 * 100)}%` }} title={`${row.metric_date}: ${score}`} />; })}</div></section>}
           </div>
         );
       })()}
@@ -1766,7 +1826,7 @@ export default function Home() {
             <StatCard label="DURABILITY" value={fmt(lr.latest_durability_decline_pct, "%")} sub={`${fmt(lr.source_distance_km)}km · +${fmt(lr.source_elevation_gain_m)}m · 디커플링 ${fmt(lr.latest_long_run_decoupling_pct, "%")}`} />
             <StatCard label="INTERVAL" value={ia.status === "ok" ? `${fmt(ia.rep_count)}회` : fmt(ia.status)} sub={`${fmt(ia.median_group_distance_m)}m · 페이스 편차 ${fmt(ia.pace_coefficient_of_variation_pct, "%")} · ${prettyDate(ia.source_date)}`} />
           </section>
-          {warnings.length > 0 && <section className="rounded-[18px] border border-black/10 bg-[#FFD51E] p-5"><div className="text-[10px] font-black uppercase tracking-[0.15em] opacity-50">DATA QUALITY</div><ul className="mt-3 space-y-2 text-sm font-bold leading-6">{warnings.map((w, i) => <li key={i}>• {w}</li>)}</ul></section>}
+          {warnings.length > 0 && <section className="rounded-[18px] border border-black/10 bg-[#FFD60A] p-5"><div className="text-[10px] font-black uppercase tracking-[0.15em] opacity-50">DATA QUALITY</div><ul className="mt-3 space-y-2 text-sm font-bold leading-6">{warnings.map((w, i) => <li key={i}>• {w}</li>)}</ul></section>}
         </div>
       )}
 
@@ -1783,20 +1843,20 @@ export default function Home() {
 
           <section className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {coachQuickQuestions.map((question, i) => (
-              <button key={question} onClick={() => askCoach(question)} disabled={coachBusy} className={`min-h-20 rounded-[16px] p-3 text-left text-xs font-black leading-5 transition active:scale-[0.98] disabled:opacity-50 ${i === 0 ? "bg-[#116CFF] text-white" : i === 1 ? "bg-[#FFD51E] text-black" : i === 2 ? "bg-[#2FD07B] text-black" : "bg-[#FF3B30] text-white"}`}>
+              <button key={question} onClick={() => askCoach(question)} disabled={coachBusy} className={`min-h-20 rounded-[16px] p-3 text-left text-xs font-black leading-5 transition active:scale-[0.98] disabled:opacity-50 ${i === 0 ? "bg-[#0A84FF] text-white" : i === 1 ? "bg-[#FFD60A] text-black" : i === 2 ? "bg-[#30D158] text-black" : "bg-[#FF453A] text-white"}`}>
                 <span className="mb-2 block text-[9px] uppercase tracking-[0.12em] opacity-55">QUICK {String(i + 1).padStart(2, "0")}</span>
                 {question}
               </button>
             ))}
           </section>
 
-          <section className="overflow-hidden rounded-[20px] border border-black/10 bg-white">
+          <section className="overflow-hidden rounded-[26px] border border-white/10 bg-[#1C1C1E] shadow-[0_18px_50px_rgba(0,0,0,.28)]">
             <div className="flex items-center justify-between border-b border-black/10 px-4 py-3 sm:px-5">
               <div><div className="text-[10px] font-black uppercase tracking-[0.16em] text-black/35">JACKSON RUNNING ENGINE</div><div className="mt-0.5 text-xs font-bold text-black/45">Claude + Supabase live context</div></div>
-              <span className="flex items-center gap-1.5 text-[10px] font-black text-black/45"><span className={`h-2 w-2 rounded-full ${coachBusy ? "animate-pulse bg-[#FFD51E]" : "bg-[#2FD07B]"}`} />{coachBusy ? "THINKING" : "READY"}</span>
+              <span className="flex items-center gap-1.5 text-[10px] font-black text-black/45"><span className={`h-2 w-2 rounded-full ${coachBusy ? "animate-pulse bg-[#FFD60A]" : "bg-[#30D158]"}`} />{coachBusy ? "THINKING" : "READY"}</span>
             </div>
 
-            <div className="max-h-[58vh] min-h-[320px] space-y-4 overflow-y-auto bg-[#F2F0E9] p-4 sm:p-5">
+            <div className="max-h-[58vh] min-h-[320px] space-y-4 overflow-y-auto bg-[#0B0B0C] p-4 sm:p-5">
               {coachMessages.length === 0 && (
                 <div className="grid min-h-[280px] place-items-center text-center">
                   <div className="max-w-sm">
@@ -1809,19 +1869,19 @@ export default function Home() {
               {coachMessages.map((message) => (
                 <div key={message.id} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
                   <article className={`max-w-[88%] rounded-[18px] px-4 py-3 text-sm font-medium leading-6 sm:max-w-[78%] ${message.role === "user" ? "rounded-br-[4px] bg-black text-white" : "rounded-bl-[4px] border border-black/10 bg-white text-black"}`}>
-                    {message.role === "assistant" && <div className="mb-2 text-[9px] font-black uppercase tracking-[0.16em] text-[#116CFF]">ENGINE</div>}
-                    <div className="whitespace-pre-wrap">{message.content}</div>
+                    {message.role === "assistant" && <div className="mb-2 text-[9px] font-black uppercase tracking-[0.16em] text-[#0A84FF]">ENGINE</div>}
+                    <CoachMessageText text={message.content} />
                   </article>
                 </div>
               ))}
-              {coachBusy && <div className="flex justify-start"><div className="rounded-[18px] rounded-bl-[4px] border border-black/10 bg-white px-4 py-3"><div className="flex items-center gap-2"><span className="h-2 w-2 animate-bounce rounded-full bg-[#116CFF]" /><span className="h-2 w-2 animate-bounce rounded-full bg-[#116CFF] [animation-delay:120ms]" /><span className="h-2 w-2 animate-bounce rounded-full bg-[#116CFF] [animation-delay:240ms]" /></div></div></div>}
+              {coachBusy && <div className="flex justify-start"><div className="rounded-[18px] rounded-bl-[4px] border border-black/10 bg-white px-4 py-3"><div className="flex items-center gap-2"><span className="h-2 w-2 animate-bounce rounded-full bg-[#0A84FF]" /><span className="h-2 w-2 animate-bounce rounded-full bg-[#0A84FF] [animation-delay:120ms]" /><span className="h-2 w-2 animate-bounce rounded-full bg-[#0A84FF] [animation-delay:240ms]" /></div></div></div>}
               <div ref={coachEndRef} />
             </div>
 
             {coachChatError && <div className="border-t border-black/10 bg-[#FFE8E5] px-4 py-3 text-xs font-bold leading-5 text-[#B8231A]">{coachChatError}</div>}
 
-            <div className="border-t border-black/10 bg-white p-3 sm:p-4">
-              <div className="flex items-end gap-2 rounded-[16px] border-2 border-black bg-[#F7F5EF] p-2">
+            <div className="border-t border-white/10 bg-[#1C1C1E] p-3 sm:p-4">
+              <div className="flex items-end gap-2 rounded-[18px] border border-white/15 bg-[#2C2C2E] p-2">
                 <textarea
                   value={coachQuestion}
                   onChange={(e) => setCoachQuestion(e.target.value)}
@@ -1834,9 +1894,9 @@ export default function Home() {
                   placeholder="젝슨 러닝 엔진에게 물어보기…"
                   rows={2}
                   maxLength={800}
-                  className="max-h-32 min-h-[48px] flex-1 resize-none bg-transparent px-2 py-2 text-sm font-bold leading-5 outline-none placeholder:text-black/30"
+                  className="max-h-32 min-h-[48px] flex-1 resize-none bg-transparent px-2 py-2 text-sm font-semibold leading-5 text-white outline-none placeholder:text-white/30"
                 />
-                <button onClick={() => askCoach()} disabled={coachBusy || !coachQuestion.trim()} className="grid h-12 w-12 shrink-0 place-items-center rounded-[12px] bg-[#116CFF] text-xl font-black text-white transition active:scale-95 disabled:bg-black/15 disabled:text-black/30" aria-label="질문 보내기">↑</button>
+                <button onClick={() => askCoach()} disabled={coachBusy || !coachQuestion.trim()} className="grid h-12 w-12 shrink-0 place-items-center rounded-[14px] bg-[#0A84FF] text-xl font-black text-white transition active:scale-95 disabled:bg-white/10 disabled:text-white/25" aria-label="질문 보내기">↑</button>
               </div>
               <div className="mt-2 flex items-center justify-between px-1 text-[9px] font-bold text-black/30"><span>Enter 전송 · Shift+Enter 줄바꿈</span><span>{coachQuestion.length}/800</span></div>
             </div>
@@ -1845,19 +1905,19 @@ export default function Home() {
           <details className="rounded-[18px] border border-black/10 bg-white p-4 sm:p-5">
             <summary className="cursor-pointer text-xs font-black uppercase tracking-[0.12em] text-black/50">DAILY REPORT · 기존 자동 코칭 보기</summary>
             <div className="mt-4">
-              {coachEntries.length ? <div className="grid gap-3 xl:grid-cols-2">{coachEntries.map(([key, value], i) => <article key={key} className={`${i % 4 === 0 ? "bg-[#116CFF] text-white" : i % 4 === 1 ? "bg-[#FFD51E] text-black" : i % 4 === 2 ? "bg-[#FF3B30] text-white" : "bg-[#2FD07B] text-black"} rounded-[16px] p-5`}><h3 className="text-base font-black">{titleize(key)}</h3><div className="mt-4 text-sm font-medium [&_.text-black\/65]:!text-current [&_.text-black\/50]:!text-current"><ValueView value={value} /></div></article>)}</div> : <div className="p-4 text-sm font-bold text-black/45">코칭 내용이 비어 있습니다.</div>}
+              {coachEntries.length ? <div className="grid gap-3 xl:grid-cols-2">{coachEntries.map(([key, value], i) => <article key={key} className={`${i % 4 === 0 ? "bg-[#0A84FF] text-white" : i % 4 === 1 ? "bg-[#FFD60A] text-black" : i % 4 === 2 ? "bg-[#FF453A] text-white" : "bg-[#30D158] text-black"} rounded-[16px] p-5`}><h3 className="text-base font-black">{titleize(key)}</h3><div className="mt-4 text-sm font-medium [&_.text-black\/65]:!text-current [&_.text-black\/50]:!text-current"><ValueView value={value} /></div></article>)}</div> : <div className="p-4 text-sm font-bold text-black/45">코칭 내용이 비어 있습니다.</div>}
             </div>
           </details>
         </div>
       )}
       </div>
 
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-black/95 px-2 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 text-white backdrop-blur-xl">
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-black/80 px-2 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 text-white backdrop-blur-2xl">
         <div className="mx-auto grid max-w-2xl grid-cols-6 gap-1">
           {tabs.map((item) => (
             <button key={item.id} onClick={() => setTab(item.id)} className={`relative rounded-[12px] px-1 py-2 text-[9px] font-black transition sm:text-[10px] ${tab === item.id ? "bg-white text-black" : "text-white/45"}`}>
               <span className="block truncate">{item.label}</span>
-              {tab === item.id && <span className="absolute inset-x-3 -bottom-1 h-1 rounded-full bg-[#FF3B30]" />}
+              {tab === item.id && <span className="absolute inset-x-3 -bottom-1 h-1 rounded-full bg-[#FF453A]" />}
             </button>
           ))}
         </div>
