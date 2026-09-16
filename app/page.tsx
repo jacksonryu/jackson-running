@@ -14,7 +14,7 @@ type ReportRow = {
   created_at: string;
 };
 
-type Tab = "overview" | "simple" | "quality" | "peak" | "detail" | "coach";
+type Tab = "overview" | "simple" | "quality" | "peak" | "detail" | "race" | "coach";
 type RaceMode = "overall" | "10k" | "half" | "marathon" | "trail50" | "trail100";
 
 type PeakHistoryRow = {
@@ -1291,7 +1291,7 @@ function PrivateBodyCard() {
             <div className="mt-2 text-2xl font-black tracking-[-0.045em]">InBody 체성분</div>
             <p className="mt-2 text-xs font-medium leading-5 text-white/40">건강 데이터는 공개 테이블에 노출하지 않고 잠금 상태로 둡니다.</p>
           </div>
-          <a href="/jackson-running/body/" className="shrink-0 rounded-full border border-white/10 px-3 py-2 text-[10px] font-black text-white/45">IMPORT</a>
+          <a href="./body/" className="shrink-0 rounded-full border border-white/10 px-3 py-2 text-[10px] font-black text-white/45">IMPORT</a>
         </div>
         <div className="mt-4 flex gap-2">
           <input type="password" value={tokenInput} onChange={(e) => setTokenInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") unlock(); }} placeholder="BODY PRIVATE token" className="min-w-0 flex-1 rounded-[14px] border border-white/10 bg-black px-4 py-3 text-sm font-bold text-white outline-none placeholder:text-white/25" />
@@ -1310,7 +1310,7 @@ function PrivateBodyCard() {
           <div className="mt-1 text-2xl font-black tracking-[-0.045em]">체성분</div>
           <div className="mt-1 text-[10px] font-bold text-white/35">{latest?.measured_at ? `측정 ${prettyDate(latest.measured_at, false)}` : "저장된 측정값 없음"}</div>
         </div>
-        <div className="flex gap-2"><a href="/jackson-running/body/" className="rounded-full border border-white/10 px-3 py-2 text-[10px] font-black text-white/45">IMPORT</a><button onClick={lock} className="rounded-full border border-white/10 px-3 py-2 text-[10px] font-black text-white/45">LOCK</button></div>
+        <div className="flex gap-2"><a href="./body/" className="rounded-full border border-white/10 px-3 py-2 text-[10px] font-black text-white/45">IMPORT</a><button onClick={lock} className="rounded-full border border-white/10 px-3 py-2 text-[10px] font-black text-white/45">LOCK</button></div>
       </div>
       {latest ? (
         <>
@@ -1328,6 +1328,162 @@ function PrivateBodyCard() {
         </>
       ) : <div className="mt-5 rounded-[16px] bg-black/30 p-4 text-sm font-bold text-white/40">아직 InBody 측정값이 없습니다. IMPORT에서 추가하세요.</div>}
     </section>
+  );
+}
+
+
+type RaceManagerRace = {
+  id: string;
+  name: string;
+  race_date: string;
+  distance_km?: number | null;
+  elevation_gain_m?: number | null;
+  source?: string | null;
+  source_url?: string | null;
+  gpx_url?: string | null;
+  status?: string | null;
+  priority?: string | null;
+  ri_strategies?: JsonRecord[];
+};
+
+function RaceManagerCard() {
+  const [token, setToken] = useState("");
+  const [officialUrl, setOfficialUrl] = useState("");
+  const [name, setName] = useState("");
+  const [raceDate, setRaceDate] = useState("");
+  const [gpxText, setGpxText] = useState("");
+  const [gpxName, setGpxName] = useState("");
+  const [races, setRaces] = useState<RaceManagerRace[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState("");
+
+  const endpoint = useMemo(() => {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    return url ? `${url.replace(/\/$/, "")}/functions/v1/race-manager` : "";
+  }, []);
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
+
+  useEffect(() => {
+    try { setToken(window.sessionStorage.getItem(BODY_TOKEN_KEY) ?? ""); } catch { /* optional */ }
+  }, []);
+
+  async function callRace(body: any) {
+    const useToken = token.trim() || (() => { try { return window.sessionStorage.getItem(BODY_TOKEN_KEY) ?? ""; } catch { return ""; } })();
+    if (!endpoint || !anonKey) throw new Error("Supabase 연결 정보가 없습니다.");
+    if (!useToken) throw new Error("BODY PRIVATE token을 먼저 연결하거나 아래에 token을 입력하세요.");
+    const res = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: anonKey,
+        Authorization: `Bearer ${anonKey}`,
+        "x-admin-token": useToken,
+      },
+      body: JSON.stringify(body),
+    });
+    const raw = await res.text();
+    let payload: any = {};
+    try { payload = raw ? JSON.parse(raw) : {}; } catch { payload = { error: raw || `RACE API 오류 (${res.status})` }; }
+    if (!res.ok) throw new Error(payload?.error ?? `RACE API 오류 (${res.status})`);
+    try { window.sessionStorage.setItem(BODY_TOKEN_KEY, useToken); } catch { /* optional */ }
+    return payload;
+  }
+
+  async function loadRaces() {
+    setBusy(true); setStatus("");
+    try {
+      const payload = await callRace({ action: "list" });
+      setRaces(Array.isArray(payload?.races) ? payload.races : []);
+      setStatus("UPCOMING RACE 동기화 완료");
+    } catch (e) { setStatus(e instanceof Error ? e.message : "레이스를 불러오지 못했습니다."); }
+    finally { setBusy(false); }
+  }
+
+  async function registerRace() {
+    if (!officialUrl.trim() && !gpxText.trim() && !name.trim()) {
+      setStatus("공식 URL 또는 GPX를 넣어주세요.");
+      return;
+    }
+    setBusy(true); setStatus("공식 정보와 GPX를 분석하는 중...");
+    try {
+      const payload = await callRace({
+        action: "register",
+        official_url: officialUrl.trim() || undefined,
+        name: name.trim() || undefined,
+        race_date: raceDate || undefined,
+        gpx_text: gpxText || undefined,
+        priority: "A",
+      });
+      const race = payload?.race;
+      setStatus(race ? `${race.name} 등록 완료 · ${race.distance_km ?? "—"}km · +${race.elevation_gain_m ?? "—"}m` : "레이스 등록 완료");
+      setOfficialUrl(""); setName(""); setRaceDate(""); setGpxText(""); setGpxName("");
+      await loadRaces();
+    } catch (e) { setStatus(e instanceof Error ? e.message : "레이스 등록 실패"); }
+    finally { setBusy(false); }
+  }
+
+  useEffect(() => {
+    if (!token) return;
+    loadRaces();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
+
+  return (
+    <div className="space-y-4">
+      <section className="rounded-[22px] border border-black/10 bg-[#0A84FF] p-5 text-white sm:p-6">
+        <div className="text-[10px] font-black uppercase tracking-[0.16em] opacity-60">RACE INTELLIGENCE</div>
+        <h2 className="mt-2 text-3xl font-black tracking-[-0.055em]">다음 레이스 자동 등록</h2>
+        <p className="mt-2 text-sm font-bold leading-6 opacity-75">공식 페이지 URL이나 GPX를 넣으면 코스·CP·고도 구조를 자동 저장합니다. SQL 입력은 더 이상 필요 없습니다.</p>
+      </section>
+
+      <section className="rounded-[22px] border border-black/10 bg-white p-5 sm:p-6">
+        {!token && (
+          <label className="block text-xs font-black text-black/45">PRIVATE TOKEN
+            <input value={token} onChange={(e) => setToken(e.target.value)} type="password" placeholder="BODY PRIVATE와 같은 token" className="mt-2 w-full rounded-[14px] border border-black/10 bg-[#F2F2F7] px-4 py-3 text-sm font-bold outline-none" />
+          </label>
+        )}
+        <label className="mt-4 block text-xs font-black text-black/45">공식 대회 페이지 URL
+          <input value={officialUrl} onChange={(e) => setOfficialUrl(e.target.value)} placeholder="https://..." inputMode="url" className="mt-2 w-full rounded-[14px] border border-black/10 bg-[#F2F2F7] px-4 py-3 text-sm font-bold outline-none" />
+        </label>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <label className="block text-xs font-black text-black/45">대회명 <span className="font-medium opacity-55">자동 인식 실패 시</span>
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="장수 JTR 38P" className="mt-2 w-full rounded-[14px] border border-black/10 bg-[#F2F2F7] px-4 py-3 text-sm font-bold outline-none" />
+          </label>
+          <label className="block text-xs font-black text-black/45">대회 날짜 <span className="font-medium opacity-55">자동 인식 실패 시</span>
+            <input value={raceDate} onChange={(e) => setRaceDate(e.target.value)} type="date" className="mt-2 w-full rounded-[14px] border border-black/10 bg-[#F2F2F7] px-4 py-3 text-sm font-bold outline-none" />
+          </label>
+        </div>
+        <label className="mt-4 block text-xs font-black text-black/45">GPX
+          <div className="mt-2 rounded-[16px] border border-dashed border-black/20 bg-[#F2F2F7] p-4">
+            <input type="file" accept=".gpx,application/gpx+xml,application/xml,text/xml" onChange={async (e) => {
+              const f = e.target.files?.[0];
+              if (!f) return;
+              setGpxName(f.name);
+              setGpxText(await f.text());
+            }} className="block w-full text-xs font-bold text-black/55" />
+            <div className="mt-2 text-[10px] font-bold text-black/35">{gpxName || "GPX가 있으면 실제 코스 프로파일을 우선 분석합니다."}</div>
+          </div>
+        </label>
+        <button onClick={registerRace} disabled={busy} className="mt-4 w-full rounded-[16px] bg-black py-4 text-sm font-black text-white disabled:opacity-35">{busy ? "ANALYZING..." : "+ RACE · 자동 등록"}</button>
+        {status && <div className="mt-3 rounded-[14px] bg-[#F2F2F7] px-4 py-3 text-xs font-bold leading-5 text-black/60">{status}</div>}
+      </section>
+
+      <section className="rounded-[22px] border border-black/10 bg-white p-5 sm:p-6">
+        <div className="flex items-center justify-between">
+          <div><div className="text-[10px] font-black uppercase tracking-[0.16em] text-black/35">UPCOMING</div><h3 className="mt-1 text-xl font-black">등록된 레이스</h3></div>
+          <button onClick={loadRaces} disabled={busy} className="rounded-full border border-black/10 px-3 py-2 text-[10px] font-black text-black/50 disabled:opacity-35">REFRESH</button>
+        </div>
+        <div className="mt-4 space-y-2">
+          {races.length === 0 ? <div className="rounded-[16px] bg-[#F2F2F7] p-4 text-sm font-bold text-black/40">아직 등록된 upcoming race가 없습니다.</div> : races.map((race) => {
+            const days = Math.ceil((new Date(race.race_date).getTime() - Date.now()) / 86400000);
+            return <div key={race.id} className="rounded-[17px] border border-black/10 bg-[#F2F2F7] p-4">
+              <div className="flex items-start justify-between gap-3"><div><div className="text-lg font-black tracking-[-0.03em]">{race.name}</div><div className="mt-1 text-xs font-bold text-black/45">{prettyDate(race.race_date, false)} · {days >= 0 ? `D-${days}` : `D+${Math.abs(days)}`}</div></div><span className="rounded-full bg-[#30D158] px-3 py-1 text-[9px] font-black text-black">{race.source ?? "RACE"}</span></div>
+              <div className="mt-3 grid grid-cols-2 gap-2"><div className="rounded-[12px] bg-white p-3"><div className="text-[9px] font-black text-black/35">DISTANCE</div><div className="mt-1 text-lg font-black">{race.distance_km ?? "—"} km</div></div><div className="rounded-[12px] bg-white p-3"><div className="text-[9px] font-black text-black/35">ELEVATION</div><div className="mt-1 text-lg font-black">+{race.elevation_gain_m ?? "—"} m</div></div></div>
+            </div>;
+          })}
+        </div>
+      </section>
+    </div>
   );
 }
 
@@ -1564,6 +1720,7 @@ export default function Home() {
     { id: "quality", label: "TRAINING" },
     { id: "peak", label: "PEAK" },
     { id: "detail", label: "상세" },
+    { id: "race", label: "RACE" },
     { id: "coach", label: "COACH" },
   ];
 
@@ -1982,6 +2139,12 @@ export default function Home() {
         </div>
       )}
 
+      {tab === "race" && (
+        <div className="mt-5 space-y-4 sm:mt-7 sm:space-y-5">
+          <RaceManagerCard />
+        </div>
+      )}
+
       {tab === "coach" && (
         <div className="mt-5 space-y-4 sm:mt-7 sm:space-y-5">
           <section className="flex items-end justify-between gap-4">
@@ -2065,7 +2228,7 @@ export default function Home() {
       </div>
 
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-black/80 px-2 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 text-white backdrop-blur-2xl">
-        <div className="mx-auto grid max-w-2xl grid-cols-6 gap-1">
+        <div className="mx-auto grid max-w-2xl grid-cols-7 gap-1">
           {tabs.map((item) => (
             <button key={item.id} onClick={() => setTab(item.id)} className={`relative rounded-[12px] px-1 py-2 text-[9px] font-black transition sm:text-[10px] ${tab === item.id ? "bg-white text-black" : "text-white/45"}`}>
               <span className="block truncate">{item.label}</span>
