@@ -205,7 +205,7 @@ function RadarChart({ current, peak }: { current: Array<number | null>; peak: Ar
           return <text key={label} x={x} y={y} textAnchor="middle" dominantBaseline="middle" fill="#8E8E93" fontSize="11">{label}</text>;
         })}
       </svg>
-      {!hasCurrent && <div className="absolute inset-0 grid place-items-center"><div className="rounded-full border border-black/10 bg-black/80 px-4 py-2 text-xs text-black/50">히스토리 백필 후 자동 표시</div></div>}
+      {!hasCurrent && <div className="absolute inset-0 grid place-items-center"><div className="rounded-full border border-black/10 bg-black/80 px-4 py-2 text-xs text-white/60">히스토리 백필 후 자동 표시</div></div>}
     </div>
   );
 }
@@ -285,7 +285,11 @@ function Shell({ children }: { children: React.ReactNode }) {
         .jr-dark { color-scheme: dark; }
         .jr-dark [class*="bg-[#F2F0E8]"],
         .jr-dark [class*="bg-[#F7F5EF]"],
-        .jr-dark [class*="bg-[#F3F0E8]"] { background-color: #0B0B0C !important; }
+        .jr-dark [class*="bg-[#F3F0E8]"],
+        .jr-dark [class*="bg-[#F2F2F7]"],
+        .jr-dark [class*="bg-[#F5F5F7]"],
+        .jr-dark [class*="bg-[#F8F6F0]"],
+        .jr-dark [class*="bg-[#FAFAFA]"] { background-color: #1C1C1E !important; }
         .jr-dark [class~="bg-white"],
         .jr-dark [class*="bg-white/"] { background-color: #1C1C1E !important; }
         .jr-dark [class*="border-black/"] { border-color: rgba(255,255,255,.12) !important; }
@@ -299,7 +303,9 @@ function Shell({ children }: { children: React.ReactNode }) {
         .jr-dark [class*="bg-[#30D158]"] [class~="text-black"],
         .jr-dark [class*="bg-[#30D158]"] [class*="text-black/"] { color: #050505 !important; }
         .jr-dark details, .jr-dark summary { color: inherit; }
-        .jr-dark textarea { caret-color: #fff; }
+        .jr-dark input, .jr-dark textarea, .jr-dark select { color: #F5F5F7; caret-color: #fff; }
+        .jr-dark input::placeholder, .jr-dark textarea::placeholder { color: rgba(255,255,255,.28) !important; }
+        .jr-dark input[type="date"] { color-scheme: dark; }
         .jr-dark ::-webkit-scrollbar { width: 0; height: 0; }
       `}</style>
       <div className="mx-auto max-w-6xl px-4 pb-28 pt-5 sm:px-6 sm:pt-8">{children}</div>
@@ -444,7 +450,7 @@ function ValueView({ value }: { value: unknown }) {
     return (
       <div className="space-y-2">
         {value.map((item, i) => (
-          <div key={i} className="rounded-xl bg-zinc-950 px-4 py-3 text-sm leading-6 text-black/80">
+          <div key={i} className="rounded-xl bg-zinc-950 px-4 py-3 text-sm leading-6 text-white/80">
             {typeof item === "object" && item !== null ? <ObjectRows obj={item as JsonRecord} /> : renderPrimitive(item)}
           </div>
         ))}
@@ -1436,49 +1442,49 @@ function RaceManagerCard() {
         <p className="mt-2 text-sm font-bold leading-6 opacity-75">공식 페이지 URL이나 GPX를 넣으면 코스·CP·고도 구조를 자동 저장합니다. SQL 입력은 더 이상 필요 없습니다.</p>
       </section>
 
-      <section className="rounded-[22px] border border-black/10 bg-white p-5 sm:p-6">
+      <section className="rounded-[22px] border border-white/10 bg-[#1C1C1E] p-5 text-white sm:p-6">
         {!token && (
-          <label className="block text-xs font-black text-black/45">PRIVATE TOKEN
-            <input value={token} onChange={(e) => setToken(e.target.value)} type="password" placeholder="BODY PRIVATE와 같은 token" className="mt-2 w-full rounded-[14px] border border-black/10 bg-[#F2F2F7] px-4 py-3 text-sm font-bold outline-none" />
+          <label className="block text-xs font-black text-white/45">PRIVATE TOKEN
+            <input value={token} onChange={(e) => setToken(e.target.value)} type="password" placeholder="BODY PRIVATE와 같은 token" className="mt-2 w-full rounded-[14px] border border-white/10 bg-black/30 px-4 py-3 text-sm font-bold text-white outline-none placeholder:text-white/25" />
           </label>
         )}
-        <label className="mt-4 block text-xs font-black text-black/45">공식 대회 페이지 URL
-          <input value={officialUrl} onChange={(e) => setOfficialUrl(e.target.value)} placeholder="https://..." inputMode="url" className="mt-2 w-full rounded-[14px] border border-black/10 bg-[#F2F2F7] px-4 py-3 text-sm font-bold outline-none" />
+        <label className="mt-4 block text-xs font-black text-white/45">공식 대회 페이지 URL
+          <input value={officialUrl} onChange={(e) => setOfficialUrl(e.target.value)} placeholder="https://..." inputMode="url" className="mt-2 w-full rounded-[14px] border border-white/10 bg-black/30 px-4 py-3 text-sm font-bold text-white outline-none placeholder:text-white/25" />
         </label>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          <label className="block text-xs font-black text-black/45">대회명 <span className="font-medium opacity-55">자동 인식 실패 시</span>
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="장수 JTR 38P" className="mt-2 w-full rounded-[14px] border border-black/10 bg-[#F2F2F7] px-4 py-3 text-sm font-bold outline-none" />
+          <label className="block text-xs font-black text-white/45">대회명 <span className="font-medium opacity-55">자동 인식 실패 시</span>
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="장수 JTR 38P" className="mt-2 w-full rounded-[14px] border border-white/10 bg-black/30 px-4 py-3 text-sm font-bold text-white outline-none placeholder:text-white/25" />
           </label>
-          <label className="block text-xs font-black text-black/45">대회 날짜 <span className="font-medium opacity-55">자동 인식 실패 시</span>
-            <input value={raceDate} onChange={(e) => setRaceDate(e.target.value)} type="date" className="mt-2 w-full rounded-[14px] border border-black/10 bg-[#F2F2F7] px-4 py-3 text-sm font-bold outline-none" />
+          <label className="block text-xs font-black text-white/45">대회 날짜 <span className="font-medium opacity-55">자동 인식 실패 시</span>
+            <input value={raceDate} onChange={(e) => setRaceDate(e.target.value)} type="date" className="mt-2 w-full rounded-[14px] border border-white/10 bg-black/30 px-4 py-3 text-sm font-bold text-white outline-none placeholder:text-white/25" />
           </label>
         </div>
-        <label className="mt-4 block text-xs font-black text-black/45">GPX
-          <div className="mt-2 rounded-[16px] border border-dashed border-black/20 bg-[#F2F2F7] p-4">
+        <label className="mt-4 block text-xs font-black text-white/45">GPX
+          <div className="mt-2 rounded-[16px] border border-dashed border-white/20 bg-black/30 p-4">
             <input type="file" accept=".gpx,application/gpx+xml,application/xml,text/xml" onChange={async (e) => {
               const f = e.target.files?.[0];
               if (!f) return;
               setGpxName(f.name);
               setGpxText(await f.text());
-            }} className="block w-full text-xs font-bold text-black/55" />
-            <div className="mt-2 text-[10px] font-bold text-black/35">{gpxName || "GPX가 있으면 실제 코스 프로파일을 우선 분석합니다."}</div>
+            }} className="block w-full text-xs font-bold text-white/55" />
+            <div className="mt-2 text-[10px] font-bold text-white/35">{gpxName || "GPX가 있으면 실제 코스 프로파일을 우선 분석합니다."}</div>
           </div>
         </label>
         <button onClick={registerRace} disabled={busy} className="mt-4 w-full rounded-[16px] bg-black py-4 text-sm font-black text-white disabled:opacity-35">{busy ? "ANALYZING..." : "+ RACE · 자동 등록"}</button>
-        {status && <div className="mt-3 rounded-[14px] bg-[#F2F2F7] px-4 py-3 text-xs font-bold leading-5 text-black/60">{status}</div>}
+        {status && <div className="mt-3 rounded-[14px] bg-black/30 px-4 py-3 text-xs font-bold leading-5 text-white/60">{status}</div>}
       </section>
 
-      <section className="rounded-[22px] border border-black/10 bg-white p-5 sm:p-6">
+      <section className="rounded-[22px] border border-white/10 bg-[#1C1C1E] p-5 text-white sm:p-6">
         <div className="flex items-center justify-between">
-          <div><div className="text-[10px] font-black uppercase tracking-[0.16em] text-black/35">UPCOMING</div><h3 className="mt-1 text-xl font-black">등록된 레이스</h3></div>
-          <button onClick={loadRaces} disabled={busy} className="rounded-full border border-black/10 px-3 py-2 text-[10px] font-black text-black/50 disabled:opacity-35">REFRESH</button>
+          <div><div className="text-[10px] font-black uppercase tracking-[0.16em] text-white/35">UPCOMING</div><h3 className="mt-1 text-xl font-black">등록된 레이스</h3></div>
+          <button onClick={loadRaces} disabled={busy} className="rounded-full border border-white/10 px-3 py-2 text-[10px] font-black text-white/50 disabled:opacity-35">REFRESH</button>
         </div>
         <div className="mt-4 space-y-2">
-          {races.length === 0 ? <div className="rounded-[16px] bg-[#F2F2F7] p-4 text-sm font-bold text-black/40">아직 등록된 upcoming race가 없습니다.</div> : races.map((race) => {
+          {races.length === 0 ? <div className="rounded-[16px] bg-black/30 p-4 text-sm font-bold text-white/40">아직 등록된 upcoming race가 없습니다.</div> : races.map((race) => {
             const days = Math.ceil((new Date(race.race_date).getTime() - Date.now()) / 86400000);
-            return <div key={race.id} className="rounded-[17px] border border-black/10 bg-[#F2F2F7] p-4">
-              <div className="flex items-start justify-between gap-3"><div><div className="text-lg font-black tracking-[-0.03em]">{race.name}</div><div className="mt-1 text-xs font-bold text-black/45">{prettyDate(race.race_date, false)} · {days >= 0 ? `D-${days}` : `D+${Math.abs(days)}`}</div></div><span className="rounded-full bg-[#30D158] px-3 py-1 text-[9px] font-black text-black">{race.source ?? "RACE"}</span></div>
-              <div className="mt-3 grid grid-cols-2 gap-2"><div className="rounded-[12px] bg-white p-3"><div className="text-[9px] font-black text-black/35">DISTANCE</div><div className="mt-1 text-lg font-black">{race.distance_km ?? "—"} km</div></div><div className="rounded-[12px] bg-white p-3"><div className="text-[9px] font-black text-black/35">ELEVATION</div><div className="mt-1 text-lg font-black">+{race.elevation_gain_m ?? "—"} m</div></div></div>
+            return <div key={race.id} className="rounded-[17px] border border-white/10 bg-black/30 p-4">
+              <div className="flex items-start justify-between gap-3"><div><div className="text-lg font-black tracking-[-0.03em]">{race.name}</div><div className="mt-1 text-xs font-bold text-white/45">{prettyDate(race.race_date, false)} · {days >= 0 ? `D-${days}` : `D+${Math.abs(days)}`}</div></div><span className="rounded-full bg-[#30D158] px-3 py-1 text-[9px] font-black text-black">{race.source ?? "RACE"}</span></div>
+              <div className="mt-3 grid grid-cols-2 gap-2"><div className="rounded-[12px] bg-white/10 p-3 text-white"><div className="text-[9px] font-black text-white/35">DISTANCE</div><div className="mt-1 text-lg font-black">{race.distance_km ?? "—"} km</div></div><div className="rounded-[12px] bg-white/10 p-3 text-white"><div className="text-[9px] font-black text-white/35">ELEVATION</div><div className="mt-1 text-lg font-black">+{race.elevation_gain_m ?? "—"} m</div></div></div>
             </div>;
           })}
         </div>
