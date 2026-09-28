@@ -318,7 +318,7 @@ def call_claude_coach(context: dict) -> Dict[str, Any]:
 
     payload = {
         "model": ANTHROPIC_MODEL,
-        "max_tokens": 3000,
+        "max_tokens": 1600,
         "system": SYSTEM_PROMPT,
         "tools": [COACHING_TOOL],
         "tool_choice": {"type": "tool", "name": "submit_coaching_report"},
@@ -341,6 +341,8 @@ def call_claude_coach(context: dict) -> Dict[str, Any]:
         raise RuntimeError(f"Claude API 호출 실패: HTTP {resp.status_code} - {resp.text[:300]}")
 
     data = resp.json()
+    usage = data.get("usage", {}) or {}
+    print(f"[Claude usage] input_tokens={usage.get('input_tokens', 0)}, output_tokens={usage.get('output_tokens', 0)}")
     for block in data.get("content", []):
         if block.get("type") == "tool_use" and block.get("name") == "submit_coaching_report":
             output = block.get("input", {})
