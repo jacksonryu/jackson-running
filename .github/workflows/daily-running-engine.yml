@@ -1,6 +1,11 @@
 name: Daily Running Engine
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - ".github/workflows/daily-running-engine.yml"
   schedule:
     # GitHub cron은 UTC 기준. 22:15 UTC = 다음날 07:15 KST.
     - cron: "15 22 * * *"
