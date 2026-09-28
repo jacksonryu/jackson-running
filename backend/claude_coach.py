@@ -537,6 +537,35 @@ def print_console_report(context: dict, output: Dict[str, Any]) -> None:
     print("\n" + "=" * 60)
 
 
+
+def build_api_unavailable_fallback(context: dict, error_message: str) -> Dict[str, Any]:
+    """Keep the dashboard's quantitative context current even when Claude API is unavailable."""
+    warnings = list(context.get("warnings") or [])
+    low_conf = warnings[:5]
+    low_conf.append("Claude API를 사용할 수 없어 오늘의 AI 코칭 해석은 생성하지 못했습니다.")
+    return {
+        "recovery_today": "최신 회복 데이터는 정상 갱신되었습니다. AI 해석은 현재 사용할 수 없습니다.",
+        "recent_load_interpretation": "최신 훈련량·부하 데이터는 정상 갱신되었습니다. AI 해석은 현재 사용할 수 없습니다.",
+        "recent_key_workout_review": "최신 핵심훈련 데이터는 정상 갱신되었습니다. AI 평가는 현재 사용할 수 없습니다.",
+        "today_recommendation": {
+            "training_type": "AI 코칭 일시 중단",
+            "distance_km": None,
+            "duration_minutes": None,
+            "intensity_or_pace": "자동 처방 없음",
+            "target_rpe": None,
+            "reasoning": "Claude API 호출 실패로 훈련 처방을 생성하지 않았습니다. 대시보드의 정량 데이터만 최신 상태로 유지합니다.",
+        },
+        "plan_b": "정량 지표를 확인하고 기존 계획을 사용하세요. 자동 코칭은 API 복구 후 다시 생성됩니다.",
+        "avoid_today": [],
+        "next_3_days_plan": [
+            {"day_offset": 1, "summary": "AI 코칭 미생성"},
+            {"day_offset": 2, "summary": "AI 코칭 미생성"},
+            {"day_offset": 3, "summary": "AI 코칭 미생성"},
+        ],
+        "low_confidence_areas": low_conf,
+    }
+
+
 def main() -> None:
     check_config()
     context = load_daily_context()
@@ -551,9 +580,10 @@ def main() -> None:
         output = call_claude_coach(context)
         validate_coaching_output(output)
     except Exception as exc:  # noqa: BLE001
-        print(f"\n[오류] Claude Coach 리포트 생성 실패: {exc}", file=sys.stderr)
-        print("[오류] 기존 daily_context.json과 이전 coach_report.json은 변경하지 않았습니다.", file=sys.stderr)
-        sys.exit(1)
+        print(f"\n[경고] Claude Coach 리포트 생성 실패: {exc}", file=sys.stderr)
+        print("[경고] AI 코칭은 생략하고 최신 정량 context를 coach_reports에 저장합니다.", file=sys.stderr)
+        output = build_api_unavailable_fallback(context, str(exc))
+        validate_coaching_output(output)
 
     now_local = now_kst()
     report = {
